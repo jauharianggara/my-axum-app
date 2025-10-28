@@ -29,11 +29,11 @@ pub async fn get_all_kantor(Extension(db): Extension<DatabaseConnection>) -> Jso
 }
 
 pub async fn get_kantor_by_id(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -147,12 +147,12 @@ pub async fn create_kantor(
 }
 
 pub async fn update_kantor(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -255,11 +255,11 @@ pub async fn update_kantor(
 }
 
 pub async fn delete_kantor(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>
 ) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(

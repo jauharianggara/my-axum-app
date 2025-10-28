@@ -140,11 +140,11 @@ pub async fn get_karyawan_with_kantor_by_id(
 }
 
 pub async fn get_karyawan_by_id(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -224,12 +224,12 @@ pub async fn create_karyawan(
 }
 
 pub async fn update_karyawan(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -304,11 +304,11 @@ pub async fn update_karyawan(
 }
 
 pub async fn delete_karyawan(
-    Path(id_str): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
 ) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id_str) {
+    let id = match validate_id(&id) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(

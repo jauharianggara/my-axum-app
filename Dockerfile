@@ -15,8 +15,11 @@ COPY . .
 
 # Build the application
 RUN cargo build --release && \
+    cd migration && cargo build --release && cd .. && \
     ls -la target/release/ && \
-    strip target/release/my-axum-app || true
+    ls -la migration/target/release/ && \
+    strip target/release/my-axum-app || true && \
+    strip migration/target/release/migration || true
 
 # ===== Runtime stage =====
 FROM debian:bookworm-slim
@@ -34,16 +37,19 @@ RUN useradd -m -u 10001 appuser && \
 
 # Copy binaries from builder stage
 COPY --from=builder /app/target/release/my-axum-app /usr/local/bin/app
+COPY --from=builder /app/migration/target/release/migration /usr/local/bin/migration
 
-# Create simple startup script
+# Create startup script that runs migration then starts the app
 RUN echo '#!/bin/bash\n\
 set -e\n\
+echo "Running database migrations..."\n\
+/usr/local/bin/migration up\n\
 echo "Starting application..."\n\
 exec /usr/local/bin/app' > /usr/local/bin/start.sh && \
     chmod +x /usr/local/bin/start.sh
 
 # Set ownership
-RUN chown appuser:appuser /usr/local/bin/app /usr/local/bin/start.sh
+RUN chown appuser:appuser /usr/local/bin/app /usr/local/bin/migration /usr/local/bin/start.sh
 
 # Environment variables
 ENV RUST_LOG=info \
