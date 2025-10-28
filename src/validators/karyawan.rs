@@ -1,3 +1,5 @@
+use std::{i32, u32};
+
 use validator::ValidationError;
 
 // Custom validation function untuk gaji
@@ -21,10 +23,33 @@ pub fn validate_gaji(gaji: &str) -> Result<(), ValidationError> {
 }
 
 // Function untuk validasi ID
-pub fn validate_id(id_str: &str) -> Result<u32, String> {
-    match id_str.parse::<u32>() {
-        Ok(id) => Ok(id),
+pub fn validate_id(id_str: &str) -> Result<i32, String> {
+    match id_str.parse::<i32>() {
+        Ok(id) if id > 0 => Ok(id),
+        Ok(_) => Err("ID harus berupa angka positif yang valid".to_string()),
         Err(_) => Err("ID harus berupa angka positif yang valid".to_string())
+    }
+}
+
+// Function untuk validasi kantor_id (optional)
+pub fn validate_kantor_id(kantor_id: &str) -> Result<(), ValidationError> {
+    // Allow empty string or "null" for optional kantor_id
+    if kantor_id.is_empty() || kantor_id.trim().to_lowercase() == "null" {
+        return Ok(());
+    }
+    
+    match kantor_id.parse::<i32>() {
+        Ok(id) if id > 0 => Ok(()),
+        Ok(_) => {
+            let mut error = ValidationError::new("invalid_kantor_id");
+            error.message = Some("kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".into());
+            Err(error)
+        }
+        Err(_) => {
+            let mut error = ValidationError::new("invalid_kantor_id");
+            error.message = Some("kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".into());
+            Err(error)
+        }
     }
 }
 

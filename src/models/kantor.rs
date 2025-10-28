@@ -1,14 +1,36 @@
+use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Kantor {
-    pub id: Option<u32>,
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "kantor")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i32,
     pub nama: String,
     pub alamat: String,
-    pub longitude: f64,
-    pub latitude: f64,
+    pub longitude: Decimal,
+    pub latitude: Decimal,
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
 }
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(has_many = "super::karyawan::Entity")]
+    Karyawan,
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+impl Related<super::karyawan::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Karyawan.def()
+    }
+}
+
+// Type alias for backward compatibility
+//pub type Kantor = Model;
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct CreateKantorRequest {

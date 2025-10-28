@@ -1,40 +1,39 @@
-use crate::models::{ApiResponse, CreateKantorRequest, Kantor, UpdateKantorRequest};
+use crate::models::{ApiResponse, kantor::{Entity as KantorEntity, Model as Kantor, ActiveModel as KantorActiveModel, CreateKantorRequest, UpdateKantorRequest}};
 use crate::validators::kantor::{
     handle_validation_errors, validate_id, validate_latitude, validate_longitude,
 };
 use axum::{
-    extract::{Json as ExtractJson, Path},
+    extract::{Json as ExtractJson, Path, Extension},
     response::Json,
 };
+use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, ModelTrait};
 use validator::Validate;
+use rust_decimal::Decimal;
+use std::str::FromStr;
 
-pub async fn get_all_kantor() -> Json<ApiResponse<Vec<Kantor>>> {
-    let kantors = vec![
-        Kantor {
-            id: Some(1),
-            nama: "Kantor Pusat".to_string(),
-            alamat: "Jl. Merdeka No.1, Jakarta".to_string(),
-            longitude: 106.827153,
-            latitude: -6.175110,
-        },
-        Kantor {
-            id: Some(2),
-            nama: "Kantor Cabang".to_string(),
-            alamat: "Jl. Sudirman No.10, Bandung".to_string(),
-            longitude: 107.609810,
-            latitude: -6.917464,
-        },
-    ];
-
-    Json(ApiResponse::success(
-        "List of kantors retrieved successfully".to_string(),
-        kantors,
-    ))
+pub async fn get_all_kantor(Extension(db): Extension<DatabaseConnection>) -> Json<ApiResponse<Vec<Kantor>>> {
+    match KantorEntity::find().all(&db).await {
+        Ok(kantors) => {
+            Json(ApiResponse::success(
+                "List of kantors retrieved successfully".to_string(),
+                kantors,
+            ))
+        }
+        Err(err) => {
+            Json(ApiResponse::error(
+                "Failed to retrieve kantors".to_string(),
+                vec![format!("Database error: {}", err)]
+            ))
+        }
+    }
 }
 
-pub async fn get_kantor_by_id(Path(id): Path<u32>) -> Json<ApiResponse<Kantor>> {
+pub async fn get_kantor_by_id(
+    Path(id_str): Path<String>,
+    Extension(db): Extension<DatabaseConnection>
+) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id.to_string()) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -44,29 +43,30 @@ pub async fn get_kantor_by_id(Path(id): Path<u32>) -> Json<ApiResponse<Kantor>> 
         }
     };
 
-    // Simulasi pengecekan apakah kantor dengan ID tersebut ada
-    if id == 0 {
-        return Json(ApiResponse::error(
-            "Kantor not found".to_string(),
-            vec!["Kantor dengan ID tersebut tidak ditemukan".to_string()],
-        ));
+    match KantorEntity::find_by_id(id).one(&db).await {
+        Ok(Some(kantor)) => {
+            Json(ApiResponse::success(
+                format!("Kantor with ID {} retrieved successfully", id),
+                kantor,
+            ))
+        }
+        Ok(None) => {
+            Json(ApiResponse::error(
+                "Kantor not found".to_string(),
+                vec!["Kantor dengan ID tersebut tidak ditemukan".to_string()],
+            ))
+        }
+        Err(err) => {
+            Json(ApiResponse::error(
+                "Failed to retrieve kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ))
+        }
     }
-
-    let kantor = Kantor {
-        id: Some(id),
-        nama: "Kantor Pusat".to_string(),
-        alamat: "Jl. Merdeka No.1, Jakarta".to_string(),
-        longitude: 106.827153,
-        latitude: -6.175110,
-    };
-
-    Json(ApiResponse::success(
-        format!("Kantor with ID {} retrieved successfully", id),
-        kantor,
-    ))
 }
 
 pub async fn create_kantor(
+    Extension(db): Extension<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<CreateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi payload
@@ -102,26 +102,57 @@ pub async fn create_kantor(
         ));
     }
 
-    let new_kantor = Kantor {
-        id: Some(3), // In real app, this would be auto-generated
-        nama: payload.nama,
-        alamat: payload.alamat,
-        longitude: payload.longitude,
-        latitude: payload.latitude,
+    let longitude = match Decimal::from_str(&payload.longitude.to_string()) {
+        Ok(val) => val,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid longitude format".to_string(),
+                vec!["Longitude harus berupa angka desimal yang valid".to_string()]
+            ));
+        }
     };
 
-    Json(ApiResponse::success(
-        "Kantor created successfully".to_string(),
-        new_kantor,
-    ))
+    let latitude = match Decimal::from_str(&payload.latitude.to_string()) {
+        Ok(val) => val,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid latitude format".to_string(),
+                vec!["Latitude harus berupa angka desimal yang valid".to_string()]
+            ));
+        }
+    };
+
+    let new_kantor = KantorActiveModel {
+        nama: Set(payload.nama),
+        alamat: Set(payload.alamat),
+        longitude: Set(longitude),
+        latitude: Set(latitude),
+        ..Default::default()
+    };
+
+    match new_kantor.insert(&db).await {
+        Ok(kantor) => {
+            Json(ApiResponse::success(
+                "Kantor created successfully".to_string(),
+                kantor,
+            ))
+        }
+        Err(err) => {
+            Json(ApiResponse::error(
+                "Failed to create kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ))
+        }
+    }
 }
 
 pub async fn update_kantor(
-    Path(id): Path<u32>,
+    Path(id_str): Path<String>,
+    Extension(db): Extension<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id.to_string()) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -164,23 +195,71 @@ pub async fn update_kantor(
         ));
     }
 
-    let updated_kantor = Kantor {
-        id: Some(id),
-        nama: payload.nama,
-        alamat: payload.alamat,
-        longitude: payload.longitude,
-        latitude: payload.latitude,
+    // Check if kantor exists
+    let existing_kantor = match KantorEntity::find_by_id(id).one(&db).await {
+        Ok(Some(kantor)) => kantor,
+        Ok(None) => {
+            return Json(ApiResponse::error(
+                "Kantor not found".to_string(),
+                vec!["Kantor dengan ID tersebut tidak ditemukan".to_string()],
+            ));
+        }
+        Err(err) => {
+            return Json(ApiResponse::error(
+                "Failed to find kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ));
+        }
     };
 
-    Json(ApiResponse::success(
-        format!("Kantor with ID {} updated successfully", id),
-        updated_kantor,
-    ))
+    let longitude = match Decimal::from_str(&payload.longitude.to_string()) {
+        Ok(val) => val,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid longitude format".to_string(),
+                vec!["Longitude harus berupa angka desimal yang valid".to_string()]
+            ));
+        }
+    };
+
+    let latitude = match Decimal::from_str(&payload.latitude.to_string()) {
+        Ok(val) => val,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid latitude format".to_string(),
+                vec!["Latitude harus berupa angka desimal yang valid".to_string()]
+            ));
+        }
+    };
+
+    let mut updated_kantor: KantorActiveModel = existing_kantor.into();
+    updated_kantor.nama = Set(payload.nama);
+    updated_kantor.alamat = Set(payload.alamat);
+    updated_kantor.longitude = Set(longitude);
+    updated_kantor.latitude = Set(latitude);
+
+    match updated_kantor.update(&db).await {
+        Ok(kantor) => {
+            Json(ApiResponse::success(
+                format!("Kantor with ID {} updated successfully", id),
+                kantor,
+            ))
+        }
+        Err(err) => {
+            Json(ApiResponse::error(
+                "Failed to update kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ))
+        }
+    }
 }
 
-pub async fn delete_kantor(Path(id): Path<u32>) -> Json<ApiResponse<()>> {
+pub async fn delete_kantor(
+    Path(id_str): Path<String>,
+    Extension(db): Extension<DatabaseConnection>
+) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id.to_string()) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -190,8 +269,35 @@ pub async fn delete_kantor(Path(id): Path<u32>) -> Json<ApiResponse<()>> {
         }
     };
 
-    Json(ApiResponse::success(
-        format!("Kantor with ID {} deleted successfully", id),
-        (),
-    ))
+    // Check if kantor exists
+    let existing_kantor = match KantorEntity::find_by_id(id).one(&db).await {
+        Ok(Some(kantor)) => kantor,
+        Ok(None) => {
+            return Json(ApiResponse::error(
+                "Kantor not found".to_string(),
+                vec!["Kantor dengan ID tersebut tidak ditemukan".to_string()],
+            ));
+        }
+        Err(err) => {
+            return Json(ApiResponse::error(
+                "Failed to find kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ));
+        }
+    };
+
+    match existing_kantor.delete(&db).await {
+        Ok(_) => {
+            Json(ApiResponse::success(
+                format!("Kantor with ID {} deleted successfully", id),
+                (),
+            ))
+        }
+        Err(err) => {
+            Json(ApiResponse::error(
+                "Failed to delete kantor".to_string(),
+                vec![format!("Database error: {}", err)]
+            ))
+        }
+    }
 }

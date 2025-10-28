@@ -1,8 +1,9 @@
 use validator::ValidationError;
 
-pub fn validate_id(id_str: &str) -> Result<u32, String> {
-    match id_str.parse::<u32>() {
-        Ok(id) => Ok(id),
+pub fn validate_id(id_str: &str) -> Result<i32, String> {
+    match id_str.parse::<i32>() {
+        Ok(id) if id > 0 => Ok(id),
+        Ok(_) => Err("ID harus berupa angka positif yang valid".to_string()),
         Err(_) => Err("ID harus berupa angka positif yang valid".to_string()),
     }
 }
