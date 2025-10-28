@@ -1,5 +1,5 @@
 # ===== Build stage =====
-FROM rust:1.82-slim as builder
+FROM rustlang/rust:nightly-slim AS builder
 WORKDIR /app
 
 # Install required build dependencies
@@ -10,26 +10,13 @@ RUN apt-get update && \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Cargo files for dependency caching
-COPY Cargo.toml Cargo.lock ./
-COPY migration/Cargo.toml ./migration/
+# Copy all source files and build
+COPY . .
 
-# Create dummy source files to cache dependencies
-RUN mkdir -p src migration/src && \
-    echo "fn main(){}" > src/main.rs && \
-    echo "pub fn run() {}" > migration/src/lib.rs && \
-    cargo build --release && \
-    rm -rf src migration/src
-
-# Copy actual source code
-COPY src ./src
-COPY migration/src ./migration/src
-
-# Build the application and migration
+# Build the application
 RUN cargo build --release && \
-    cargo build --release -p migration && \
-    strip target/release/my-axum-app || true && \
-    strip target/release/migration || true
+    ls -la target/release/ && \
+    strip target/release/my-axum-app || true
 
 # ===== Runtime stage =====
 FROM debian:bookworm-slim
@@ -47,19 +34,16 @@ RUN useradd -m -u 10001 appuser && \
 
 # Copy binaries from builder stage
 COPY --from=builder /app/target/release/my-axum-app /usr/local/bin/app
-COPY --from=builder /app/target/release/migration /usr/local/bin/migration
 
-# Create startup script that runs migration then starts the app
+# Create simple startup script
 RUN echo '#!/bin/bash\n\
 set -e\n\
-echo "Running database migrations..."\n\
-/usr/local/bin/migration migrate up\n\
 echo "Starting application..."\n\
 exec /usr/local/bin/app' > /usr/local/bin/start.sh && \
     chmod +x /usr/local/bin/start.sh
 
 # Set ownership
-RUN chown appuser:appuser /usr/local/bin/app /usr/local/bin/migration /usr/local/bin/start.sh
+RUN chown appuser:appuser /usr/local/bin/app /usr/local/bin/start.sh
 
 # Environment variables
 ENV RUST_LOG=info \
