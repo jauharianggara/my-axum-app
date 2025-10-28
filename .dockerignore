@@ -1,0 +1,42 @@
+# Rust
+target/
+Cargo.lock
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# Documentation
+README.md
+README_NEW.md
+DATABASE_SETUP.md
+
+# Test files
+test_*.ps1
+*.ps1
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node modules (if any)
+node_modules/
