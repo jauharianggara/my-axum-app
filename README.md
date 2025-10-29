@@ -862,14 +862,34 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 **Version**: 3.0.0  
 **Last Updated**: October 29, 2025
 
-## 📁 Additional Documentation
+## 📁 Documentation & Project Organization
 
-- [DATABASE_SETUP.md](DATABASE_SETUP.md) - Panduan setup database lengkap
-- [DOCKER_README.md](DOCKER_README.md) - Panduan Docker deployment lengkap
-- [SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md) - Comprehensive Schemathesis testing guide
+### Project Structure Overview
+- [docs/PROJECT_ORGANIZATION.md](docs/PROJECT_ORGANIZATION.md) - **Comprehensive project structure guide**
+
+### Setup & Configuration Guides
+- [docs/DATABASE_SETUP.md](docs/DATABASE_SETUP.md) - Panduan setup database lengkap
+- [docs/DOCKER_README.md](docs/DOCKER_README.md) - Panduan Docker deployment lengkap
+- [docs/SCHEMATHESIS_GUIDE.md](docs/SCHEMATHESIS_GUIDE.md) - Comprehensive Schemathesis testing guide
+- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - General testing guidelines
+
+### Testing Framework
 - [tests/README.md](tests/README.md) - Organized testing framework documentation
-- [FOTO_FEATURE_DOCUMENTATION.md](FOTO_FEATURE_DOCUMENTATION.md) - Photo upload feature documentation
-- [KANTOR_VALIDATION_SUMMARY.md](KANTOR_VALIDATION_SUMMARY.md) - Kantor validation implementation
-- [KANTOR_REQUIRED_SUMMARY.md](KANTOR_REQUIRED_SUMMARY.md) - Kantor required enforcement
-- [TEST_ORGANIZATION_SUMMARY.md](TEST_ORGANIZATION_SUMMARY.md) - Testing framework organization
+- [docs/test-results/](docs/test-results/) - Test execution results
+
+### Feature Documentation
+- [docs/summaries/20251029_FOTO_FEATURE_DOCUMENTATION.md](docs/summaries/20251029_FOTO_FEATURE_DOCUMENTATION.md) - Photo upload feature documentation
+- [docs/summaries/20251029_KANTOR_VALIDATION_SUMMARY.md](docs/summaries/20251029_KANTOR_VALIDATION_SUMMARY.md) - Kantor validation implementation
+- [docs/summaries/20251029_KANTOR_REQUIRED_SUMMARY.md](docs/summaries/20251029_KANTOR_REQUIRED_SUMMARY.md) - Kantor required enforcement
+- [docs/summaries/20251029_TEST_ORGANIZATION_SUMMARY.md](docs/summaries/20251029_TEST_ORGANIZATION_SUMMARY.md) - Testing framework organization
+- [docs/summaries/20251029_IMPLEMENTATION_SUMMARY.md](docs/summaries/20251029_IMPLEMENTATION_SUMMARY.md) - Overall implementation details
+
+### Legacy References
+- [legacy-tests/](legacy-tests/) - Legacy test files (superseded by organized tests/)
 - [README_NEW.md](README_NEW.md) - Additional project information
+
+### Quick Navigation
+- **For Setup**: Check `docs/` folder for configuration guides
+- **For Testing**: Use `tests/` framework and check `docs/test-results/`
+- **For Development**: See `docs/summaries/` for feature implementation details
+- **For Scripts**: Use `scripts/` folder for automation tools
