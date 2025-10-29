@@ -1,10 +1,10 @@
 use crate::models::{
-    ApiResponse,
     kantor::Entity as KantorEntity,
     karyawan::{
         ActiveModel as KaryawanActiveModel, CreateKaryawanRequest, Entity as KaryawanEntity,
         Model as Karyawan, UpdateKaryawanRequest,
     },
+    ApiResponse,
 };
 use crate::validators::karyawan::{handle_validation_errors, validate_id};
 use axum::{
@@ -12,8 +12,8 @@ use axum::{
     response::Json,
 };
 use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, EntityTrait, LoaderTrait, ModelTrait, Set,
-    prelude::DateTimeWithTimeZone,
+    prelude::DateTimeWithTimeZone, ActiveModelTrait, DatabaseConnection, EntityTrait, LoaderTrait,
+    ModelTrait, Set,
 };
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -103,10 +103,14 @@ pub async fn get_karyawan_with_kantor_by_id(
 
     match KaryawanEntity::find_by_id(id).one(&db).await {
         Ok(Some(karyawan)) => {
-            // Load related kantor data
-            let kantor_nama = match karyawan.find_related(KantorEntity).one(&db).await {
-                Ok(kantor) => kantor.map(|k| k.nama),
-                Err(_) => None,
+            // Load related kantor data only if kantor_id exists
+            let kantor_nama = if karyawan.kantor_id > 0 {
+                match karyawan.find_related(KantorEntity).one(&db).await {
+                    Ok(kantor) => kantor.map(|k| k.nama),
+                    Err(_) => None,
+                }
+            } else {
+                None
             };
 
             let karyawan_with_kantor = KaryawanWithKantor {
@@ -140,11 +144,11 @@ pub async fn get_karyawan_with_kantor_by_id(
 }
 
 pub async fn get_karyawan_by_id(
-    Path(id): Path<String>,
+    Path(id_str): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -182,16 +186,18 @@ pub async fn create_karyawan(
         ));
     }
 
-    // Parse kantor_id - allow empty/null for freelancers
     let kantor_id = match payload.kantor_id.parse::<i32>() {
         Ok(kantor_id) => kantor_id,
         Err(_) => {
             return Json(ApiResponse::error(
                 "Invalid kantor_id format".to_string(),
-                vec!["kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".to_string()],
+                vec![
+                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                        .to_string(),
+                ],
             ));
         }
-    }; 
+    };
 
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,
@@ -224,12 +230,12 @@ pub async fn create_karyawan(
 }
 
 pub async fn update_karyawan(
-    Path(id): Path<String>,
+    Path(id_str): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(
@@ -247,13 +253,15 @@ pub async fn update_karyawan(
         ));
     }
 
-    // Parse kantor_id - allow empty/null for freelancers
     let kantor_id = match payload.kantor_id.parse::<i32>() {
         Ok(kantor_id) => kantor_id,
         Err(_) => {
             return Json(ApiResponse::error(
                 "Invalid kantor_id format".to_string(),
-                vec!["kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".to_string()],
+                vec![
+                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                        .to_string(),
+                ],
             ));
         }
     };
@@ -304,11 +312,11 @@ pub async fn update_karyawan(
 }
 
 pub async fn delete_karyawan(
-    Path(id): Path<String>,
+    Path(id_str): Path<String>,
     Extension(db): Extension<DatabaseConnection>,
 ) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
-    let id = match validate_id(&id) {
+    let id = match validate_id(&id_str) {
         Ok(id) => id,
         Err(error_msg) => {
             return Json(ApiResponse::error(

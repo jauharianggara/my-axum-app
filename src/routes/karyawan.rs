@@ -16,9 +16,9 @@ pub fn create_karyawan_routes() -> Router {
     Router::new()
         .route("/", get(get_all_karyawan))
         .route("/with-kantor", get(get_all_karyawan_with_kantor))
-        .route("/{id}", get(get_karyawan_by_id))
-        .route("/{id}/with-kantor", get(get_karyawan_with_kantor_by_id))
+        .route("/:id", get(get_karyawan_by_id))
+        .route("/:id/with-kantor", get(get_karyawan_with_kantor_by_id))
         .route("/", post(create_karyawan))
-        .route("/{id}", put(update_karyawan))
-        .route("/{id}", delete(delete_karyawan))
+        .route("/:id", put(update_karyawan))
+        .route("/:id", delete(delete_karyawan))
 }

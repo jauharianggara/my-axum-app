@@ -13,8 +13,8 @@ use crate::handlers::kantor::{
 pub fn create_kantor_routes() -> Router {
     Router::new()
         .route("/", get(get_all_kantor))
-        .route("/{id}", get(get_kantor_by_id))
+        .route("/:id", get(get_kantor_by_id))
         .route("/", post(create_kantor))
-        .route("/{id}", put(update_kantor))
-        .route("/{id}", delete(delete_kantor))
+        .route("/:id", put(update_kantor))
+        .route("/:id", delete(delete_kantor))
 }
