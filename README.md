@@ -13,6 +13,9 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 - **Geographic Validation**: Validasi koordinat longitude dan latitude untuk kantor
 - **Database Migrations**: Automated schema management
 - **Connection Pooling**: Efficient database connection management
+- **Docker Support**: Full containerization dengan Docker Compose
+- **Relationship Management**: Support untuk relasi karyawan-kantor
+- **Auto Migration**: Database schema auto-migration pada startup container
 
 ## 🚀 Teknologi
 
@@ -23,6 +26,8 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 - **Serde**: JSON serialization/deserialization
 - **Validator**: Data validation dengan derive macros
 - **Tokio**: Async runtime
+- **Docker**: Containerization dengan multi-stage builds
+- **Docker Compose**: Orchestration untuk development environment
 
 ## 📁 Struktur Project
 
@@ -61,9 +66,38 @@ migration/                  # Database migrations
 ### Prerequisites
 - **Rust (1.70+)** dan Cargo
 - **MySQL Server** (8.0+) 
+- **Docker & Docker Compose** (untuk containerized deployment)
 - **Git** (opsional)
 
-### Steps
+### Option 1: Docker Compose (Recommended)
+
+1. **Clone repository**
+   ```bash
+   git clone <repository-url>
+   cd my-axum-app
+   ```
+
+2. **Run dengan Docker Compose**
+   ```bash
+   # Build dan jalankan semua services (app + database)
+   docker-compose up --build
+   
+   # Atau run di background
+   docker-compose up -d --build
+   ```
+
+   Expected output:
+   ```
+   [+] Running 2/2
+   ✔ Container my-axum-app-db-1   Healthy                                    
+   ✔ Container my-axum-app-app-1  Started
+   ```
+
+   Server akan berjalan di: `http://localhost:8080`
+   
+   **Untuk setup Docker lengkap, lihat [DOCKER_README.md](DOCKER_README.md)**
+
+### Option 2: Local Development
 
 1. **Clone repository**
    ```bash
@@ -97,7 +131,7 @@ migration/                  # Database migrations
    
    # Atau manual:
    cd migration
-   cargo run -- migrate up
+   cargo run -- up
    cd ..
    ```
 
@@ -136,19 +170,21 @@ migration/                  # Database migrations
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
 | GET | `/api/karyawans` | Dapatkan semua karyawan |
-| GET | `/api/karyawans/{id}` | Dapatkan karyawan berdasarkan ID |
+| GET | `/api/karyawans/with-kantor` | Dapatkan semua karyawan dengan info kantor |
+| GET | `/api/karyawans/:id` | Dapatkan karyawan berdasarkan ID |
+| GET | `/api/karyawans/:id/with-kantor` | Dapatkan karyawan dengan info kantor berdasarkan ID |
 | POST | `/api/karyawans` | Buat karyawan baru |
-| PUT | `/api/karyawans/{id}` | Update karyawan |
-| DELETE | `/api/karyawans/{id}` | Hapus karyawan |
+| PUT | `/api/karyawans/:id` | Update karyawan |
+| DELETE | `/api/karyawans/:id` | Hapus karyawan |
 
 #### Kantor Management
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
 | GET | `/api/kantors` | Dapatkan semua kantor |
-| GET | `/api/kantors/{id}` | Dapatkan kantor berdasarkan ID |
+| GET | `/api/kantors/:id` | Dapatkan kantor berdasarkan ID |
 | POST | `/api/kantors` | Buat kantor baru |
-| PUT | `/api/kantors/{id}` | Update kantor |
-| DELETE | `/api/kantors/{id}` | Hapus kantor |
+| PUT | `/api/kantors/:id` | Update kantor |
+| DELETE | `/api/kantors/:id` | Hapus kantor |
 
 ## 📝 Database Schema & API Format
 
@@ -161,8 +197,11 @@ CREATE TABLE karyawan (
   nama VARCHAR(50) NOT NULL,
   posisi VARCHAR(30) NOT NULL,
   gaji INT NOT NULL,
+  kantor_id INT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `idx_karyawan_kantor_id` (`kantor_id`),
+  CONSTRAINT `fk_karyawan_kantor` FOREIGN KEY (`kantor_id`) REFERENCES `kantor` (`id`)
 );
 ```
 
@@ -188,6 +227,21 @@ CREATE TABLE kantor (
   "nama": "Budi Santoso",
   "posisi": "Software Engineer", 
   "gaji": 8000000,
+  "kantor_id": 2,
+  "created_at": "2024-10-28T10:30:00Z",
+  "updated_at": "2024-10-28T10:30:00Z"
+}
+```
+
+#### Karyawan dengan Kantor Model
+```json
+{
+  "id": 1,
+  "nama": "Budi Santoso",
+  "posisi": "Software Engineer", 
+  "gaji": 8000000,
+  "kantor_id": 2,
+  "kantor_nama": "Kantor Jakarta",
   "created_at": "2024-10-28T10:30:00Z",
   "updated_at": "2024-10-28T10:30:00Z"
 }
@@ -213,7 +267,8 @@ CREATE TABLE kantor (
 {
   "nama": "Nama Karyawan",
   "posisi": "Posisi Jabatan",
-  "gaji": "8000000"
+  "gaji": "8000000",
+  "kantor_id": "2"
 }
 ```
 
@@ -256,7 +311,11 @@ CREATE TABLE kantor (
   - Required
   - Harus berupa string yang bisa dikonversi ke angka
   - Minimal 1,000,000 (1 juta)
-  - Maksimal 50,000,000 (50 juta)
+  - Maksimal 100,000,000 (100 juta)
+- **Kantor ID**: 
+  - Required
+  - Harus berupa angka positif yang valid
+  - Harus mereferensi kantor yang ada
 - **ID**: Harus berupa angka positif yang valid
 
 ### Kantor Validation:
@@ -298,6 +357,16 @@ CREATE TABLE kantor (
    .\test_all_apis.ps1
    ```
 
+4. **Test Relationships:**
+   ```powershell
+   .\test_relationships.ps1
+   ```
+
+5. **Test Validation:**
+   ```powershell
+   .\test_validation.ps1
+   ```
+
 ### Manual Testing dengan PowerShell
 
 **Test Karyawan:**
@@ -305,8 +374,14 @@ CREATE TABLE kantor (
 # Get all karyawans
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -UseBasicParsing
 
+# Get karyawan with kantor info
+Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/with-kantor -UseBasicParsing
+
+# Get specific karyawan
+Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/2 -UseBasicParsing
+
 # Create new karyawan
-$body = '{"nama":"John Doe","posisi":"Developer","gaji":"8000000"}'
+$body = '{"nama":"John Doe","posisi":"Developer","gaji":"8000000","kantor_id":"2"}'
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
 ```
 
@@ -324,12 +399,15 @@ Invoke-WebRequest -Uri http://localhost:8080/api/kantors -Method POST -Body $bod
 ```bash
 # Test karyawan endpoints
 curl http://localhost:8080/api/karyawans
+curl http://localhost:8080/api/karyawans/2
+curl http://localhost:8080/api/karyawans/2/with-kantor
 curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
-  -d '{"nama":"Jane Doe","posisi":"Manager","gaji":"12000000"}'
+  -d '{"nama":"Jane Doe","posisi":"Manager","gaji":"12000000","kantor_id":"2"}'
 
 # Test kantor endpoints
 curl http://localhost:8080/api/kantors
+curl http://localhost:8080/api/kantors/2
 curl -X POST http://localhost:8080/api/kantors \
   -H "Content-Type: application/json" \
   -d '{"nama":"Kantor Baru","alamat":"Jl. Baru No.123","longitude":107.6,"latitude":-6.9}'
@@ -352,16 +430,34 @@ cargo fmt
 ### Database Operations:
 ```bash
 # Check migration status
-cd migration && cargo run -- migrate status
+cd migration && cargo run -- status
 
 # Run pending migrations  
-cd migration && cargo run -- migrate up
+cd migration && cargo run -- up
 
 # Rollback last migration
-cd migration && cargo run -- migrate down
+cd migration && cargo run -- down
 
 # Reset all migrations
-cd migration && cargo run -- migrate reset
+cd migration && cargo run -- reset
+```
+
+### Docker Development:
+```bash
+# Build only
+docker-compose build
+
+# Run in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
+
+# Rebuild and restart
+docker-compose down && docker-compose up --build
 ```
 
 ## 📖 Arsitektur
@@ -400,12 +496,21 @@ cd migration && cargo run -- migrate reset
 
 ## 🎯 Features Teruji
 
+### Docker & Containerization:
+- ✅ Multi-stage Docker build dengan Rust nightly
+- ✅ Auto-migration pada container startup
+- ✅ Docker Compose dengan MySQL service
+- ✅ Health checks dan proper dependency management
+- ✅ Non-root user security dalam container
+- ✅ Production-ready deployment setup
+
 ### Database Integration:
 - ✅ MySQL connection dengan Sea-ORM
 - ✅ Automated migrations untuk schema management
 - ✅ Connection pooling untuk performance
 - ✅ Type-safe database operations
 - ✅ Auto-generated timestamps (created_at, updated_at)
+- ✅ Foreign key relationships (karyawan → kantor)
 
 ### Karyawan Management:
 - ✅ CRUD operations lengkap dengan database persistence
@@ -413,6 +518,8 @@ cd migration && cargo run -- migrate reset
 - ✅ Error handling untuk ID invalid
 - ✅ Custom validation functions
 - ✅ Database constraint validation
+- ✅ Relationship queries dengan kantor
+- ✅ Endpoint dengan dan tanpa kantor info
 
 ### Kantor Management:
 - ✅ CRUD operations lengkap dengan database persistence
@@ -421,11 +528,45 @@ cd migration && cargo run -- migrate reset
 - ✅ Address dan nama validation
 - ✅ Database constraint validation
 
+### API Routing & Endpoints:
+- ✅ Proper Axum routing dengan `:id` parameters
+- ✅ Fixed variable shadowing bugs
+- ✅ RESTful API design
+- ✅ Consistent JSON response format
+- ✅ Comprehensive error handling
+
 ### Testing Coverage:
 - ✅ Unit tests untuk validation functions
 - ✅ Integration tests untuk semua endpoints
 - ✅ Error handling tests
 - ✅ Boundary value tests
+- ✅ Relationship testing
+- ✅ PowerShell test scripts
+
+## 🛠️ Known Issues & Fixes
+
+### Recently Fixed Issues:
+1. **✅ Docker Build Issues**: Fixed Rust edition compatibility dan Cargo.lock handling
+2. **✅ Route Parameter Syntax**: Changed `{id}` to `:id` untuk proper Axum routing
+3. **✅ Variable Shadowing**: Fixed konflik nama variabel dalam handler parameters
+4. **✅ Database Migration**: Implemented auto-migration pada container startup
+5. **✅ Foreign Key Relations**: Added proper karyawan-kantor relationship
+
+### Current Limitations:
+- Database seeding masih manual via init.sql
+- Belum ada authentication/authorization system
+- Belum ada pagination untuk large datasets
+- Belum ada audit logging untuk data changes
+
+## 🚀 Future Enhancements:
+- [ ] Authentication & Authorization dengan JWT
+- [ ] Pagination dan filtering untuk endpoints
+- [ ] Audit logging system
+- [ ] API documentation dengan OpenAPI/Swagger
+- [ ] Rate limiting dan caching
+- [ ] Background job processing
+- [ ] Email notifications
+- [ ] File upload support untuk avatar karyawan
 
 ## 🤝 Contributing
 
@@ -441,6 +582,12 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 
 ---
 
-**Author**: [Your Name]  
-**Version**: 2.0.0  
-**Last Updated**: October 2025
+**Author**: [jauharianggara]  
+**Version**: 2.1.0  
+**Last Updated**: October 29, 2025
+
+## 📁 Additional Documentation
+
+- [DATABASE_SETUP.md](DATABASE_SETUP.md) - Panduan setup database lengkap
+- [DOCKER_README.md](DOCKER_README.md) - Panduan Docker deployment lengkap
+- [README_NEW.md](README_NEW.md) - Additional project information
