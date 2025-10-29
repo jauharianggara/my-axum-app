@@ -6,7 +6,7 @@ use crate::models::{
     },
     ApiResponse,
 };
-use crate::validators::karyawan::{handle_validation_errors, validate_id};
+use crate::validators::karyawan::{handle_validation_errors, validate_id, validate_kantor_id_exists};
 use crate::services::file_upload::{FileUploadService, UploadedFile};
 use axum::{
     extract::{Extension, Json as ExtractJson, Path, Multipart},
@@ -112,14 +112,10 @@ pub async fn get_karyawan_with_kantor_by_id(
 
     match KaryawanEntity::find_by_id(id).one(&db).await {
         Ok(Some(karyawan)) => {
-            // Load related kantor data only if kantor_id exists
-            let kantor_nama = if karyawan.kantor_id > 0 {
-                match karyawan.find_related(KantorEntity).one(&db).await {
-                    Ok(kantor) => kantor.map(|k| k.nama),
-                    Err(_) => None,
-                }
-            } else {
-                None
+            // Load related kantor data
+            let kantor_nama = match karyawan.find_related(KantorEntity).one(&db).await {
+                Ok(kantor) => kantor.map(|k| k.nama),
+                Err(_) => None,
             };
 
             let karyawan_with_kantor = KaryawanWithKantor {
@@ -205,12 +201,20 @@ pub async fn create_karyawan(
             return Json(ApiResponse::error(
                 "Invalid kantor_id format".to_string(),
                 vec![
-                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                    "kantor_id wajib diisi dan harus berupa angka positif yang valid"
                         .to_string(),
                 ],
             ));
         }
     };
+
+    // Validasi apakah kantor_id ada di database
+    if let Err(error_msg) = validate_kantor_id_exists(kantor_id, &db).await {
+        return Json(ApiResponse::error(
+            "Invalid kantor_id".to_string(),
+            vec![error_msg],
+        ));
+    }
 
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,
@@ -276,12 +280,20 @@ pub async fn update_karyawan(
             return Json(ApiResponse::error(
                 "Invalid kantor_id format".to_string(),
                 vec![
-                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                    "kantor_id wajib diisi dan harus berupa angka positif yang valid"
                         .to_string(),
                 ],
             ));
         }
     };
+
+    // Validasi apakah kantor_id ada di database
+    if let Err(error_msg) = validate_kantor_id_exists(kantor_id, &db).await {
+        return Json(ApiResponse::error(
+            "Invalid kantor_id".to_string(),
+            vec![error_msg],
+        ));
+    }
 
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,
@@ -461,12 +473,25 @@ pub async fn create_karyawan_with_photo(
             return Json(ApiResponse::error(
                 "Invalid kantor_id format".to_string(),
                 vec![
-                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                    "kantor_id wajib diisi dan harus berupa angka positif yang valid"
                         .to_string(),
                 ],
             ));
         }
     };
+
+    // Validasi apakah kantor_id ada di database
+    if let Err(error_msg) = validate_kantor_id_exists(kantor_id, &db).await {
+        // Clean up uploaded file if validation fails
+        if let Some(file) = uploaded_file {
+            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+        }
+        
+        return Json(ApiResponse::error(
+            "Invalid kantor_id".to_string(),
+            vec![error_msg],
+        ));
+    }
 
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,

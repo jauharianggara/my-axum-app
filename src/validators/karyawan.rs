@@ -31,25 +31,41 @@ pub fn validate_id(id_str: &str) -> Result<i32, String> {
     }
 }
 
-// Function untuk validasi kantor_id (optional)
-pub fn validate_kantor_id(kantor_id: &str) -> Result<(), ValidationError> {
-    // Allow empty string or "null" for optional kantor_id
-    if kantor_id.is_empty() || kantor_id.trim().to_lowercase() == "null" {
-        return Ok(());
-    }
-    
+// Function untuk validasi kantor_id (wajib diisi)
+pub fn validate_kantor_id(kantor_id: &str) -> Result<(), ValidationError> {    
     match kantor_id.parse::<i32>() {
-        Ok(id) if id > 0 => Ok(()),
+        Ok(id) if id > 0 => Ok(()), // Harus positif, tidak boleh 0
         Ok(_) => {
             let mut error = ValidationError::new("invalid_kantor_id");
-            error.message = Some("kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".into());
+            error.message = Some("kantor_id wajib diisi dan harus berupa angka positif yang valid".into());
             Err(error)
         }
         Err(_) => {
             let mut error = ValidationError::new("invalid_kantor_id");
-            error.message = Some("kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer".into());
+            error.message = Some("kantor_id wajib diisi dan harus berupa angka positif yang valid".into());
             Err(error)
         }
+    }
+}
+
+// Function async untuk validasi kantor_id dengan database check
+pub async fn validate_kantor_id_exists(
+    kantor_id: i32, 
+    db: &sea_orm::DatabaseConnection
+) -> Result<(), String> {
+    use crate::models::kantor::Entity as KantorEntity;
+    use sea_orm::EntityTrait;
+    
+    // kantor_id harus positif dan wajib diisi
+    if kantor_id <= 0 {
+        return Err("kantor_id wajib diisi dan harus berupa angka positif".to_string());
+    }
+    
+    // Check apakah kantor ada di database
+    match KantorEntity::find_by_id(kantor_id).one(db).await {
+        Ok(Some(_)) => Ok(()), // Kantor ditemukan
+        Ok(None) => Err(format!("Kantor dengan ID {} tidak ditemukan di database", kantor_id)),
+        Err(err) => Err(format!("Error saat mengecek kantor di database: {}", err)),
     }
 }
 

@@ -10,7 +10,7 @@ pub struct Model {
     pub nama: String,
     pub posisi: String,
     pub gaji: i32,
-    pub kantor_id:  i32,
+    pub kantor_id: i32,
     pub foto_path: Option<String>,
     pub foto_original_name: Option<String>,
     pub foto_size: Option<i64>,
