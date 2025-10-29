@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Docker Build Validation Script
-# This script validates the Dockerfile without actually building
+# Docker Build Validation Script with Schemathesis Integration
+# This script validates the Dockerfile and runs Schemathesis API testing
 
-echo "=== Docker Build Validation ==="
+echo "=== Docker Build Validation with Schemathesis Testing ==="
 echo ""
 
 # Check if Dockerfile exists
@@ -24,6 +24,8 @@ required_files=(
     "migration/Cargo.toml"
     "src/main.rs"
     "migration/src/lib.rs"
+    "schemathesis_test.py"
+    "docker_with_schemathesis.sh"
 )
 
 for file in "${required_files[@]}"; do
@@ -31,6 +33,9 @@ for file in "${required_files[@]}"; do
         echo "✅ $file exists"
     else
         echo "❌ $file missing"
+        if [ "$file" = "schemathesis_test.py" ]; then
+            echo "   ℹ️  Schemathesis testing will be skipped"
+        fi
     fi
 done
 
@@ -126,4 +131,56 @@ else
 fi
 
 echo ""
+echo "=== Schemathesis Testing Check ==="
+
+# Check if Python is available for Schemathesis
+if command -v python3 &> /dev/null || command -v python &> /dev/null; then
+    echo "✅ Python found for Schemathesis testing"
+    
+    # Check if Schemathesis test files exist
+    if [ -f "schemathesis_test.py" ]; then
+        echo "✅ Schemathesis test script found"
+        
+        # Check if virtual environment can be created
+        if python3 -m venv test_env_check 2>/dev/null || python -m venv test_env_check 2>/dev/null; then
+            rm -rf test_env_check 2>/dev/null
+            echo "✅ Python virtual environment support available"
+        else
+            echo "⚠️  Python virtual environment support not available"
+        fi
+        
+        # Check if requirements file exists
+        if [ -f "requirements-schemathesis.txt" ]; then
+            echo "✅ Schemathesis requirements file found"
+        else
+            echo "⚠️  Schemathesis requirements file not found (will use basic install)"
+        fi
+        
+        echo "ℹ️  Schemathesis testing is ready!"
+        echo "   To run full Docker + Schemathesis test:"
+        echo "   ./docker_with_schemathesis.sh"
+        
+    else
+        echo "⚠️  Schemathesis test script not found"
+        echo "   Testing will be limited to basic Docker validation"
+    fi
+else
+    echo "⚠️  Python not found - Schemathesis testing not available"
+    echo "   Install Python to enable comprehensive API testing"
+fi
+
+echo ""
 echo "=== Validation Complete ==="
+
+# Offer to run full integration test
+if [ -f "schemathesis_test.py" ] && [ -f "docker_with_schemathesis.sh" ]; then
+    echo ""
+    echo "🚀 Ready for full Docker + Schemathesis integration test!"
+    echo ""
+    echo "To run the complete test suite:"
+    echo "  chmod +x docker_with_schemathesis.sh"
+    echo "  ./docker_with_schemathesis.sh"
+    echo ""
+    echo "Or use PowerShell on Windows:"
+    echo "  .\\docker_with_schemathesis.ps1"
+fi

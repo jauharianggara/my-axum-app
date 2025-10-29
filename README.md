@@ -340,7 +340,35 @@ CREATE TABLE kantor (
 
 ## 🧪 Testing
 
-### Test Scripts Tersedia:
+### Automated Testing dengan Schemathesis
+
+Project ini include comprehensive API testing menggunakan **Schemathesis** - property-based testing tool yang generate test cases otomatis berdasarkan OpenAPI schema.
+
+#### Quick Start Testing:
+```powershell
+# Option 1: Docker + Schemathesis Integration (Recommended)
+.\docker_with_schemathesis.ps1
+
+# Option 2: Standalone Schemathesis (API harus sudah running)
+.\run_schemathesis_tests.ps1
+
+# Option 3: Manual Python script
+python schemathesis_test.py
+```
+
+#### Schemathesis Features:
+- ✅ **Property-based testing** dengan random data generation
+- ✅ **Comprehensive endpoint coverage** untuk semua API routes
+- ✅ **Edge case detection** dan boundary value testing
+- ✅ **Response validation** untuk format dan status codes
+- ✅ **Custom hooks** untuk valid test data generation
+- ✅ **Integration dengan Docker** untuk full environment testing
+
+**📖 Untuk panduan lengkap Schemathesis, lihat [SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md)**
+
+### Manual Testing Scripts
+
+Test Scripts Tersedia:
 
 1. **Test Karyawan API:**
    ```powershell
@@ -458,6 +486,9 @@ docker-compose down
 
 # Rebuild and restart
 docker-compose down && docker-compose up --build
+
+# Full Docker + Schemathesis testing
+.\docker_with_schemathesis.ps1
 ```
 
 ## 📖 Arsitektur
@@ -542,6 +573,8 @@ docker-compose down && docker-compose up --build
 - ✅ Boundary value tests
 - ✅ Relationship testing
 - ✅ PowerShell test scripts
+- ✅ **Schemathesis property-based testing**
+- ✅ **Automated Docker + API integration testing**
 
 ## 🛠️ Known Issues & Fixes
 
@@ -590,4 +623,5 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 
 - [DATABASE_SETUP.md](DATABASE_SETUP.md) - Panduan setup database lengkap
 - [DOCKER_README.md](DOCKER_README.md) - Panduan Docker deployment lengkap
+- [SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md) - Comprehensive Schemathesis testing guide
 - [README_NEW.md](README_NEW.md) - Additional project information
