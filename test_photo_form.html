@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Upload Foto Karyawan</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], input[type="file"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .karyawan-list {
+            margin-top: 30px;
+        }
+        .karyawan-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .photo-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .info {
+            background-color: #e2e3e5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #383d41;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏢 Test Upload Foto Karyawan</h1>
+        
+        <div class="info">
+            <strong>📋 Instruksi:</strong><br>
+            1. Pastikan server Axum berjalan di <code>http://localhost:8080</code><br>
+            2. Isi form di bawah untuk membuat karyawan dengan foto<br>
+            3. File foto harus berformat JPEG, PNG, atau WebP (max 5MB)<br>
+            4. Gaji harus antara 1,000,000 - 100,000,000
+        </div>
+
+        <!-- Form untuk create karyawan dengan foto -->
+        <form id="createForm" enctype="multipart/form-data">
+            <h3>📝 Buat Karyawan Baru dengan Foto</h3>
+            
+            <div class="form-group">
+                <label for="nama">Nama Karyawan:</label>
+                <input type="text" id="nama" name="nama" required minlength="2" maxlength="50" 
+                       placeholder="Contoh: John Doe">
+            </div>
+            
+            <div class="form-group">
+                <label for="posisi">Posisi:</label>
+                <input type="text" id="posisi" name="posisi" required minlength="2" maxlength="30" 
+                       placeholder="Contoh: Developer">
+            </div>
+            
+            <div class="form-group">
+                <label for="gaji">Gaji:</label>
+                <input type="text" id="gaji" name="gaji" required 
+                       placeholder="Contoh: 5000000" pattern="[0-9]+">
+            </div>
+            
+            <div class="form-group">
+                <label for="kantor_id">Kantor ID:</label>
+                <select id="kantor_id" name="kantor_id" required>
+                    <option value="1">1 - Kantor Pusat</option>
+                    <option value="2">2 - Kantor Cabang</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="foto">Foto Karyawan:</label>
+                <input type="file" id="foto" name="foto" accept="image/*" required>
+                <small>Format: JPEG, PNG, WebP | Max: 5MB</small>
+            </div>
+            
+            <button type="submit">🚀 Buat Karyawan dengan Foto</button>
+        </form>
+
+        <!-- Form untuk upload foto ke karyawan existing -->
+        <form id="uploadForm" enctype="multipart/form-data" style="margin-top: 30px;">
+            <h3>📸 Upload Foto ke Karyawan Existing</h3>
+            
+            <div class="form-group">
+                <label for="karyawan_id">ID Karyawan:</label>
+                <input type="text" id="karyawan_id" name="karyawan_id" required 
+                       placeholder="Contoh: 1" pattern="[0-9]+">
+            </div>
+            
+            <div class="form-group">
+                <label for="foto_update">Foto Baru:</label>
+                <input type="file" id="foto_update" name="foto" accept="image/*" required>
+            </div>
+            
+            <button type="submit">📤 Upload Foto</button>
+            <button type="button" id="deletePhoto" class="delete-btn">🗑️ Hapus Foto</button>
+        </form>
+
+        <!-- Area untuk menampilkan hasil -->
+        <div id="result"></div>
+
+        <!-- Button untuk refresh data -->
+        <button type="button" id="refreshData" style="margin-top: 20px;">🔄 Refresh Data Karyawan</button>
+
+        <!-- Area untuk menampilkan list karyawan -->
+        <div id="karyawanList" class="karyawan-list"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        // Handle create karyawan dengan foto
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            try {
+                showResult('Mengirim data...', 'info');
+                
+                const response = await fetch(`${API_BASE}/karyawans/with-photo`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ Berhasil! Karyawan "${result.data.nama}" dibuat dengan foto`, 'success');
+                    e.target.reset();
+                    refreshKaryawanList();
+                } else {
+                    showResult(`❌ Error: ${result.message}\\n${result.errors?.join('\\n') || ''}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Network Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Handle upload foto
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const karyawanId = document.getElementById('karyawan_id').value;
+            const formData = new FormData();
+            formData.append('foto', document.getElementById('foto_update').files[0]);
+            
+            try {
+                showResult('Mengupload foto...', 'info');
+                
+                const response = await fetch(`${API_BASE}/karyawans/${karyawanId}/photo`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ Foto berhasil diupload untuk karyawan ID ${karyawanId}`, 'success');
+                    document.getElementById('foto_update').value = '';
+                    refreshKaryawanList();
+                } else {
+                    showResult(`❌ Error: ${result.message}\\n${result.errors?.join('\\n') || ''}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Network Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Handle delete foto
+        document.getElementById('deletePhoto').addEventListener('click', async () => {
+            const karyawanId = document.getElementById('karyawan_id').value;
+            
+            if (!karyawanId) {
+                showResult('❌ Masukkan ID karyawan terlebih dahulu', 'error');
+                return;
+            }
+            
+            if (!confirm(`Hapus foto untuk karyawan ID ${karyawanId}?`)) {
+                return;
+            }
+            
+            try {
+                showResult('Menghapus foto...', 'info');
+                
+                const response = await fetch(`${API_BASE}/karyawans/${karyawanId}/photo`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ Foto berhasil dihapus untuk karyawan ID ${karyawanId}`, 'success');
+                    refreshKaryawanList();
+                } else {
+                    showResult(`❌ Error: ${result.message}\\n${result.errors?.join('\\n') || ''}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Network Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Handle refresh data
+        document.getElementById('refreshData').addEventListener('click', refreshKaryawanList);
+
+        // Function untuk menampilkan hasil
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="result ${type}">${message.replace(/\\n/g, '<br>')}</div>`;
+        }
+
+        // Function untuk refresh list karyawan
+        async function refreshKaryawanList() {
+            try {
+                const response = await fetch(`${API_BASE}/karyawans/with-kantor`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayKaryawanList(result.data);
+                } else {
+                    showResult(`❌ Error loading data: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Network Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Function untuk display list karyawan
+        function displayKaryawanList(karyawans) {
+            const listDiv = document.getElementById('karyawanList');
+            
+            if (karyawans.length === 0) {
+                listDiv.innerHTML = '<h3>📋 Belum ada data karyawan</h3>';
+                return;
+            }
+            
+            let html = '<h3>👥 Daftar Karyawan</h3>';
+            
+            karyawans.forEach(k => {
+                html += `
+                    <div class="karyawan-item">
+                        <strong>ID ${k.id}: ${k.nama}</strong><br>
+                        Posisi: ${k.posisi}<br>
+                        Gaji: Rp ${k.gaji.toLocaleString()}<br>
+                        Kantor: ${k.kantor_nama || 'N/A'}<br>
+                        Foto: ${k.foto_path ? 
+                            `<span style="color: green;">✅ Ada (${k.foto_original_name}, ${(k.foto_size/1024).toFixed(1)} KB)</span>` : 
+                            '<span style="color: gray;">❌ Tidak ada</span>'
+                        }
+                        ${k.foto_path ? `<br><img src="${API_BASE.replace('/api', '')}/${k.foto_path}" class="photo-preview" alt="Foto ${k.nama}">` : ''}
+                    </div>
+                `;
+            });
+            
+            listDiv.innerHTML = html;
+        }
+
+        // Load data saat halaman pertama kali dibuka
+        window.addEventListener('DOMContentLoaded', refreshKaryawanList);
+    </script>
+</body>
+</html>

@@ -11,6 +11,10 @@ pub struct Model {
     pub posisi: String,
     pub gaji: i32,
     pub kantor_id:  i32,
+    pub foto_path: Option<String>,
+    pub foto_original_name: Option<String>,
+    pub foto_size: Option<i64>,
+    pub foto_mime_type: Option<String>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
