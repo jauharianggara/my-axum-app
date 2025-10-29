@@ -7,8 +7,9 @@ use crate::models::{
     ApiResponse,
 };
 use crate::validators::karyawan::{handle_validation_errors, validate_id};
+use crate::services::file_upload::{FileUploadService, UploadedFile};
 use axum::{
-    extract::{Extension, Json as ExtractJson, Path},
+    extract::{Extension, Json as ExtractJson, Path, Multipart},
     response::Json,
 };
 use sea_orm::{
@@ -26,6 +27,10 @@ pub struct KaryawanWithKantor {
     pub gaji: i32,
     pub kantor_id: i32,
     pub kantor_nama: Option<String>,
+    pub foto_path: Option<String>,
+    pub foto_original_name: Option<String>,
+    pub foto_size: Option<i64>,
+    pub foto_mime_type: Option<String>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -48,6 +53,10 @@ pub async fn get_all_karyawan_with_kantor(
                             gaji: karyawan.gaji,
                             kantor_id: karyawan.kantor_id,
                             kantor_nama: kantor.map(|k| k.nama),
+                            foto_path: karyawan.foto_path,
+                            foto_original_name: karyawan.foto_original_name,
+                            foto_size: karyawan.foto_size,
+                            foto_mime_type: karyawan.foto_mime_type,
                             created_at: karyawan.created_at,
                             updated_at: karyawan.updated_at,
                         })
@@ -120,6 +129,10 @@ pub async fn get_karyawan_with_kantor_by_id(
                 gaji: karyawan.gaji,
                 kantor_id: karyawan.kantor_id,
                 kantor_nama,
+                foto_path: karyawan.foto_path,
+                foto_original_name: karyawan.foto_original_name,
+                foto_size: karyawan.foto_size,
+                foto_mime_type: karyawan.foto_mime_type,
                 created_at: karyawan.created_at,
                 updated_at: karyawan.updated_at,
             };
@@ -214,6 +227,10 @@ pub async fn create_karyawan(
         posisi: Set(payload.posisi),
         gaji: Set(gaji),
         kantor_id: Set(kantor_id),
+        foto_path: Set(None),
+        foto_original_name: Set(None),
+        foto_size: Set(None),
+        foto_mime_type: Set(None),
         ..Default::default()
     };
 
@@ -343,6 +360,11 @@ pub async fn delete_karyawan(
         }
     };
 
+    // Delete the physical photo file if it exists
+    if let Some(foto_path) = &existing_karyawan.foto_path {
+        let _ = FileUploadService::delete_karyawan_photo(foto_path).await;
+    }
+
     match existing_karyawan.delete(&db).await {
         Ok(_) => Json(ApiResponse::success(
             format!("Karyawan with ID {} deleted successfully", id),
@@ -350,6 +372,285 @@ pub async fn delete_karyawan(
         )),
         Err(err) => Json(ApiResponse::error(
             "Failed to delete karyawan".to_string(),
+            vec![format!("Database error: {}", err)],
+        )),
+    }
+}
+
+pub async fn create_karyawan_with_photo(
+    Extension(db): Extension<DatabaseConnection>,
+    mut multipart: Multipart,
+) -> Json<ApiResponse<Karyawan>> {
+    let mut karyawan_data: Option<CreateKaryawanRequest> = None;
+    let mut uploaded_file: Option<UploadedFile> = None;
+
+    // Process multipart form data
+    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+        let name = field.name().unwrap_or("").to_string();
+
+        match name.as_str() {
+            "nama" | "posisi" | "gaji" | "kantor_id" => {
+                let value = field.text().await.unwrap_or_default();
+                
+                // Build the karyawan data incrementally
+                if karyawan_data.is_none() {
+                    karyawan_data = Some(CreateKaryawanRequest {
+                        nama: String::new(),
+                        posisi: String::new(),
+                        gaji: String::new(),
+                        kantor_id: String::new(),
+                    });
+                }
+
+                if let Some(ref mut data) = karyawan_data {
+                    match name.as_str() {
+                        "nama" => data.nama = value,
+                        "posisi" => data.posisi = value,
+                        "gaji" => data.gaji = value,
+                        "kantor_id" => data.kantor_id = value,
+                        _ => {}
+                    }
+                }
+            }
+            "foto" => {
+                match FileUploadService::save_karyawan_photo(field, None).await {
+                    Ok(file) => uploaded_file = Some(file),
+                    Err(err) => {
+                        return Json(ApiResponse::error(
+                            "Failed to upload photo".to_string(),
+                            vec![err.to_string()],
+                        ));
+                    }
+                }
+            }
+            _ => {} // Ignore unknown fields
+        }
+    }
+
+    let payload = match karyawan_data {
+        Some(data) => data,
+        None => {
+            return Json(ApiResponse::error(
+                "Missing karyawan data".to_string(),
+                vec!["Nama, posisi, gaji, dan kantor_id diperlukan".to_string()],
+            ));
+        }
+    };
+
+    // Validate the payload
+    if let Err(validation_errors) = payload.validate() {
+        // Clean up uploaded file if validation fails
+        if let Some(file) = uploaded_file {
+            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+        }
+        
+        return Json(ApiResponse::error(
+            "Validation failed".to_string(),
+            handle_validation_errors(validation_errors),
+        ));
+    }
+
+    let kantor_id = match payload.kantor_id.parse::<i32>() {
+        Ok(kantor_id) => kantor_id,
+        Err(_) => {
+            // Clean up uploaded file if parsing fails
+            if let Some(file) = uploaded_file {
+                let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+            }
+            
+            return Json(ApiResponse::error(
+                "Invalid kantor_id format".to_string(),
+                vec![
+                    "kantor_id harus berupa angka positif yang valid atau kosong untuk freelancer"
+                        .to_string(),
+                ],
+            ));
+        }
+    };
+
+    let gaji = match payload.gaji.parse::<i32>() {
+        Ok(gaji) => gaji,
+        Err(_) => {
+            // Clean up uploaded file if parsing fails
+            if let Some(file) = uploaded_file {
+                let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+            }
+            
+            return Json(ApiResponse::error(
+                "Invalid gaji format".to_string(),
+                vec!["Gaji harus berupa angka yang valid".to_string()],
+            ));
+        }
+    };
+
+    let new_karyawan = KaryawanActiveModel {
+        nama: Set(payload.nama),
+        posisi: Set(payload.posisi),
+        gaji: Set(gaji),
+        kantor_id: Set(kantor_id),
+        foto_path: Set(uploaded_file.as_ref().map(|f| f.file_path.clone())),
+        foto_original_name: Set(uploaded_file.as_ref().map(|f| f.original_name.clone())),
+        foto_size: Set(uploaded_file.as_ref().map(|f| f.size)),
+        foto_mime_type: Set(uploaded_file.as_ref().map(|f| f.mime_type.clone())),
+        ..Default::default()
+    };
+
+    match new_karyawan.insert(&db).await {
+        Ok(karyawan) => Json(ApiResponse::success(
+            "Karyawan created successfully with photo".to_string(),
+            karyawan,
+        )),
+        Err(err) => {
+            // Clean up uploaded file if database insertion fails
+            if let Some(file) = uploaded_file {
+                let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+            }
+            
+            Json(ApiResponse::error(
+                "Failed to create karyawan".to_string(),
+                vec![format!("Database error: {}", err)],
+            ))
+        }
+    }
+}
+
+pub async fn upload_karyawan_photo(
+    Path(id_str): Path<String>,
+    Extension(db): Extension<DatabaseConnection>,
+    mut multipart: Multipart,
+) -> Json<ApiResponse<Karyawan>> {
+    // Validasi ID
+    let id = match validate_id(&id_str) {
+        Ok(id) => id,
+        Err(error_msg) => {
+            return Json(ApiResponse::error(
+                "Invalid ID format".to_string(),
+                vec![error_msg],
+            ));
+        }
+    };
+
+    // Check if karyawan exists
+    let existing_karyawan = match KaryawanEntity::find_by_id(id).one(&db).await {
+        Ok(Some(karyawan)) => karyawan,
+        Ok(None) => {
+            return Json(ApiResponse::error(
+                "Karyawan not found".to_string(),
+                vec!["Karyawan dengan ID tersebut tidak ditemukan".to_string()],
+            ));
+        }
+        Err(err) => {
+            return Json(ApiResponse::error(
+                "Failed to find karyawan".to_string(),
+                vec![format!("Database error: {}", err)],
+            ));
+        }
+    };
+
+    // Process multipart form data to get the photo
+    let mut uploaded_file: Option<UploadedFile> = None;
+    
+    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+        let name = field.name().unwrap_or("").to_string();
+        
+        if name == "foto" {
+            match FileUploadService::update_karyawan_photo(
+                field, 
+                id, 
+                existing_karyawan.foto_path.as_deref()
+            ).await {
+                Ok(file) => uploaded_file = Some(file),
+                Err(err) => {
+                    return Json(ApiResponse::error(
+                        "Failed to upload photo".to_string(),
+                        vec![err.to_string()],
+                    ));
+                }
+            }
+            break;
+        }
+    }
+
+    let uploaded_file = match uploaded_file {
+        Some(file) => file,
+        None => {
+            return Json(ApiResponse::error(
+                "No photo file provided".to_string(),
+                vec!["Field 'foto' diperlukan untuk upload foto".to_string()],
+            ));
+        }
+    };
+
+    // Update database with new photo info
+    let mut updated_karyawan: KaryawanActiveModel = existing_karyawan.into();
+    updated_karyawan.foto_path = Set(Some(uploaded_file.file_path));
+    updated_karyawan.foto_original_name = Set(Some(uploaded_file.original_name));
+    updated_karyawan.foto_size = Set(Some(uploaded_file.size));
+    updated_karyawan.foto_mime_type = Set(Some(uploaded_file.mime_type));
+
+    match updated_karyawan.update(&db).await {
+        Ok(karyawan) => Json(ApiResponse::success(
+            format!("Photo uploaded successfully for karyawan ID {}", id),
+            karyawan,
+        )),
+        Err(err) => Json(ApiResponse::error(
+            "Failed to update karyawan with photo info".to_string(),
+            vec![format!("Database error: {}", err)],
+        )),
+    }
+}
+
+pub async fn delete_karyawan_photo(
+    Path(id_str): Path<String>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Json<ApiResponse<Karyawan>> {
+    // Validasi ID
+    let id = match validate_id(&id_str) {
+        Ok(id) => id,
+        Err(error_msg) => {
+            return Json(ApiResponse::error(
+                "Invalid ID format".to_string(),
+                vec![error_msg],
+            ));
+        }
+    };
+
+    // Check if karyawan exists
+    let existing_karyawan = match KaryawanEntity::find_by_id(id).one(&db).await {
+        Ok(Some(karyawan)) => karyawan,
+        Ok(None) => {
+            return Json(ApiResponse::error(
+                "Karyawan not found".to_string(),
+                vec!["Karyawan dengan ID tersebut tidak ditemukan".to_string()],
+            ));
+        }
+        Err(err) => {
+            return Json(ApiResponse::error(
+                "Failed to find karyawan".to_string(),
+                vec![format!("Database error: {}", err)],
+            ));
+        }
+    };
+
+    // Delete the physical file if it exists
+    if let Some(foto_path) = &existing_karyawan.foto_path {
+        let _ = FileUploadService::delete_karyawan_photo(foto_path).await;
+    }
+
+    // Update database to remove photo info
+    let mut updated_karyawan: KaryawanActiveModel = existing_karyawan.into();
+    updated_karyawan.foto_path = Set(None);
+    updated_karyawan.foto_original_name = Set(None);
+    updated_karyawan.foto_size = Set(None);
+    updated_karyawan.foto_mime_type = Set(None);
+
+    match updated_karyawan.update(&db).await {
+        Ok(karyawan) => Json(ApiResponse::success(
+            format!("Photo deleted successfully for karyawan ID {}", id),
+            karyawan,
+        )),
+        Err(err) => Json(ApiResponse::error(
+            "Failed to update karyawan after photo deletion".to_string(),
             vec![format!("Database error: {}", err)],
         )),
     }

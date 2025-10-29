@@ -8,6 +8,7 @@ mod handlers;
 mod models;
 mod routes;
 mod validators;
+mod services;
 
 use database::establish_connection;
 use handlers::health::health_check;
@@ -37,6 +38,7 @@ async fn main() {
         .route("/health", get(health_check))
         .nest("/api/karyawans", create_karyawan_routes())
         .nest("/api/kantors", create_kantor_routes())
+        .nest_service("/uploads", tower_http::services::ServeDir::new("uploads"))
         .layer(Extension(db));
 
     // Get host and port from environment or use defaults
