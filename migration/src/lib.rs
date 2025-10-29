@@ -5,7 +5,8 @@ mod m20241028_000002_create_kantor_table;
 mod m20251028_090641_add_kantor_id_to_karyawan;
 mod m20241029_000003_add_foto_column_to_karyawan;
 mod m20251029_101303_make_kantor_id_required;
-
+mod m20251029_120000_create_users_table;
+mod m20251029_140819_change_timestamp_to_datetime;
 
 pub struct Migrator;
 
@@ -18,6 +19,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20251028_090641_add_kantor_id_to_karyawan::Migration),
             Box::new(m20241029_000003_add_foto_column_to_karyawan::Migration),
             Box::new(m20251029_101303_make_kantor_id_required::Migration),
+            Box::new(m20251029_120000_create_users_table::Migration),
+            Box::new(m20251029_140819_change_timestamp_to_datetime::Migration),
         ]
     }
 }

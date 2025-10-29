@@ -4,6 +4,8 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 
 ## ✨ Fitur Utama
 
+- **JWT Authentication**: Sistem autentikasi lengkap dengan JWT token dan password hashing
+- **User Management**: Register, login, dan protected endpoints dengan bcrypt security
 - **CRUD Operations**: Create, Read, Update, Delete untuk karyawan dan kantor
 - **Photo Upload Management**: Upload, update, dan delete foto karyawan dengan validasi keamanan
 - **Database Integration**: MySQL database dengan Sea-ORM dan automated migrations
@@ -23,6 +25,8 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 - **Rust**: Bahasa pemrograman utama
 - **Axum 0.8.6**: Modern web framework untuk Rust
 - **Sea-ORM 1.1.0**: Modern ORM untuk Rust dengan MySQL support
+- **JWT Authentication**: Custom HMAC-SHA256 JWT implementation untuk secure authentication
+- **bcrypt**: Password hashing dengan secure salt rounds
 - **MySQL**: Database relational untuk penyimpanan data
 - **Serde**: JSON serialization/deserialization
 - **Validator**: Data validation dengan derive macros
@@ -40,6 +44,7 @@ src/
 ├── database.rs             # Database configuration dan connection pooling
 ├── handlers/               # HTTP request handlers
 │   ├── mod.rs
+│   ├── auth.rs            # Authentication handlers (register, login, me)
 │   ├── health.rs          # Health check handler
 │   ├── karyawan.rs        # CRUD handlers untuk karyawan + foto upload
 │   └── kantor.rs          # CRUD handlers untuk kantor
@@ -47,13 +52,16 @@ src/
 │   ├── mod.rs
 │   ├── common.rs          # Shared response models (ApiResponse)
 │   ├── karyawan.rs        # Karyawan entity & request DTOs
-│   └── kantor.rs          # Kantor entity & request DTOs
+│   ├── kantor.rs          # Kantor entity & request DTOs
+│   └── user.rs            # User entity untuk authentication system
 ├── routes/                 # Route definitions
 │   ├── mod.rs
+│   ├── auth.rs            # Authentication routes (register, login, me)
 │   ├── karyawan.rs        # Karyawan routes
 │   └── kantor.rs          # Kantor routes
 ├── services/               # Business logic services
 │   ├── mod.rs
+│   ├── auth.rs            # JWT token dan password hashing services
 │   └── file_upload.rs     # File upload service dengan validasi
 └── validators/             # Custom validation logic
     ├── mod.rs
@@ -68,6 +76,7 @@ migration/                  # Database migrations
 tests/                      # Organized testing framework
 ├── api/                   # API functionality tests
 │   ├── basic_api_test.py           # Core API tests
+│   ├── auth_test.py                # Auth tests
 │   ├── karyawan_crud_test.py       # Karyawan CRUD tests
 │   └── kantor_crud_test.py         # Kantor CRUD tests
 ├── photo/                 # Photo upload testing
@@ -187,6 +196,13 @@ uploads/                    # File upload directory
 
 ### Base URL: `http://localhost:8080`
 
+#### Authentication
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| POST | `/api/auth/register` | Register user baru |
+| POST | `/api/auth/login` | Login dan dapatkan JWT token |
+| GET | `/api/user/me` | Dapatkan profil user (protected) |
+
 #### Health Check
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
@@ -225,6 +241,22 @@ uploads/                    # File upload directory
 
 ### Database Tables
 
+#### Users Table
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  email VARCHAR(100) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(100) NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `idx_users_username` (`username`),
+  KEY `idx_users_email` (`email`)
+);
+```
+
 #### Karyawan Table
 ```sql
 CREATE TABLE karyawan (
@@ -259,6 +291,33 @@ CREATE TABLE kantor (
 ```
 
 ### API Response Models
+
+#### User Model
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "john@example.com",
+  "full_name": "John Doe",
+  "is_active": true,
+  "created_at": "2024-10-29T10:30:00Z",
+  "updated_at": "2024-10-29T10:30:00Z"
+}
+```
+
+#### Login Response
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "username": "john_doe",
+    "email": "john@example.com",
+    "full_name": "John Doe",
+    "is_active": true
+  }
+}
+```
 
 #### Karyawan Model
 ```json
@@ -309,6 +368,24 @@ CREATE TABLE kantor (
 ```
 
 ### Request DTOs
+
+#### Register Request
+```json
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "securepassword123",
+  "full_name": "John Doe"
+}
+```
+
+#### Login Request
+```json
+{
+  "username": "john_doe",
+  "password": "securepassword123"
+}
+```
 
 #### Create Karyawan Request (JSON)
 ```json
@@ -372,6 +449,13 @@ Fields:
 
 ## ✅ Validasi Data
 
+### Authentication Validation:
+- **Username**: Required, minimal 3 karakter, maksimal 50 karakter, unique
+- **Email**: Required, format email valid, maksimal 100 karakter, unique
+- **Password**: Required, minimal 6 karakter untuk security
+- **Full Name**: Required, minimal 2 karakter, maksimal 100 karakter
+- **JWT Token**: HMAC-SHA256 signature dengan 24 jam expiration
+
 ### Karyawan Validation:
 - **Nama**: Required, minimal 2 karakter, maksimal 50 karakter
 - **Posisi**: Required, minimal 2 karakter, maksimal 30 karakter
@@ -405,6 +489,30 @@ Fields:
 - **Security**: Prevent upload file executable atau script
 - **Naming**: Auto-generated filename untuk prevent collision
 - **Storage**: Organized dalam struktur folder `/uploads/karyawan/photos/`
+
+### Contoh Error Authentication:
+```json
+{
+  "success": false,
+  "message": "Invalid credentials",
+  "data": null,
+  "errors": [
+    "Username atau password salah"
+  ]
+}
+```
+
+### Contoh Error Token:
+```json
+{
+  "success": false,
+  "message": "Authentication required",
+  "data": null,
+  "errors": [
+    "Token tidak valid atau expired"
+  ]
+}
+```
 
 ### Contoh Error Validasi:
 ```json
@@ -464,11 +572,15 @@ tests/
 # Master test runner (all tests)
 python run_tests.py
 
+# Test JWT Authentication
+python simple_jwt_test.py
+
 # PowerShell automation
 .\tests\scripts\simple_test.ps1
 
 # Specific test suites
 python tests\api\basic_api_test.py
+python tests\api\auth_test.py
 python tests\photo\photo_upload_test.py
 python tests\photo\photo_security_test.py
 ```
@@ -477,6 +589,7 @@ python tests\photo\photo_security_test.py
 
 #### 1. **API Functionality Tests** (`tests/api/`)
 - ✅ **Basic API Tests**: Health checks, endpoint availability
+- ✅ **Authentication Tests**: Register, login, protected endpoints
 - ✅ **Karyawan CRUD Tests**: Complete CRUD operations dengan validasi
 - ✅ **Kantor CRUD Tests**: Complete CRUD operations dengan geographic validation
 - ✅ **Relationship Tests**: Karyawan-kantor relationship testing
@@ -559,6 +672,22 @@ Legacy Test Scripts:
 
 ### Manual Testing dengan PowerShell
 
+**Test Authentication:**
+```powershell
+# Register new user
+$body = '{"username":"testuser","email":"test@example.com","password":"password123","full_name":"Test User"}'
+Invoke-WebRequest -Uri http://localhost:8080/api/auth/register -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
+
+# Login and get JWT token
+$body = '{"username":"testuser","password":"password123"}'
+$response = Invoke-WebRequest -Uri http://localhost:8080/api/auth/login -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
+$token = ($response.Content | ConvertFrom-Json).token
+
+# Access protected endpoint
+$headers = @{ "Authorization" = "Bearer $token" }
+Invoke-WebRequest -Uri http://localhost:8080/api/user/me -Headers $headers -UseBasicParsing
+```
+
 **Test Karyawan:**
 ```powershell
 # Get all karyawans
@@ -593,6 +722,23 @@ Invoke-WebRequest -Uri http://localhost:8080/api/kantors -Method POST -Body $bod
 
 ### Menggunakan curl (jika tersedia):
 ```bash
+# Test authentication endpoints
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123","full_name":"Test User"}'
+
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password123"}'
+
+# Get JWT token and use for protected endpoint
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password123"}' | \
+  jq -r '.token')
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/user/me
+
 # Test karyawan endpoints
 curl http://localhost:8080/api/karyawans
 curl http://localhost:8080/api/karyawans/2
@@ -681,6 +827,14 @@ docker-compose down && docker-compose up --build
 - **Migrations**: Automated schema versioning dan management
 - **Entity Models**: Type-safe database models dengan validations
 - **Foreign Key Constraints**: RESTRICT policy untuk data integrity
+- **Authentication Schema**: Users table dengan unique constraints dan indexes
+
+### Security Layer:
+- **JWT Authentication**: Custom HMAC-SHA256 implementation dengan secure token generation
+- **Password Security**: bcrypt hashing dengan secure salt rounds
+- **Token Validation**: Bearer token authentication untuk protected endpoints
+- **Input Validation**: Comprehensive validation untuk authentication endpoints
+- **ARM64 Compatibility**: Custom JWT implementation untuk ARM64 Windows environment
 
 ### Business Logic Layer:
 - **Services**: File upload service dengan keamanan dan validasi
@@ -690,11 +844,13 @@ docker-compose down && docker-compose up --build
 
 ### Separation of Concerns:
 - **Database**: Connection management dan ORM configuration
+- **Authentication**: JWT service dan password hashing dalam services layer
 - **Handlers**: HTTP requests dan business logic orchestration
 - **Models**: Sea-ORM entities dan request/response DTOs
-- **Services**: Reusable business logic (file upload, etc.)
+- **Services**: Reusable business logic (authentication, file upload, etc.)
 - **Validators**: Custom validation logic untuk business rules
 - **Routes**: Definisi routing yang terpisah dari main.rs
+- **Middleware**: Authentication middleware untuk protected endpoints
 
 ### Design Patterns:
 - **Repository Pattern**: Database operations encapsulated dalam Sea-ORM entities
@@ -716,15 +872,36 @@ docker-compose down && docker-compose up --build
 ```
 ├── database.rs        # Database connection layer
 ├── handlers/          # HTTP layer dengan business logic
+│   ├── auth.rs       # Authentication handlers (register, login, me)
+│   ├── health.rs     # Health check
+│   ├── karyawan.rs   # Karyawan CRUD
+│   └── kantor.rs     # Kantor CRUD
 ├── models/           # Sea-ORM entity layer
-├── services/         # Business logic layer (file upload, etc.)
+│   ├── user.rs       # User authentication model
+│   ├── karyawan.rs   # Karyawan model
+│   └── kantor.rs     # Kantor model
+├── services/         # Business logic layer
+│   ├── auth.rs       # JWT dan password services
+│   └── file_upload.rs # File upload service
 ├── validators/       # Business logic validation layer
 ├── routes/          # Routing layer
+│   ├── auth.rs       # Authentication routes
+│   ├── karyawan.rs   # Karyawan routes
+│   └── kantor.rs     # Kantor routes
 ├── migration/        # Database schema management
 └── main.rs         # Application setup dengan database initialization
 ```
 
 ## 🎯 Features Teruji
+
+### JWT Authentication System:
+- ✅ **User Registration** dengan password hashing menggunakan bcrypt
+- ✅ **User Login** dengan credential validation dan JWT token generation
+- ✅ **Protected Endpoints** dengan Bearer token authentication
+- ✅ **Custom JWT Implementation** HMAC-SHA256 untuk ARM64 Windows compatibility
+- ✅ **Password Security** dengan bcrypt secure salt rounds
+- ✅ **Token Validation** dengan proper error handling dan user feedback
+- ✅ **Database Integration** dengan users table dan proper indexes
 
 ### Photo Upload & File Management:
 - ✅ **File Upload** dengan multipart form data handling
@@ -746,6 +923,7 @@ docker-compose down && docker-compose up --build
 
 ### Organized Testing Framework:
 - ✅ **Structured Test Directory** dengan organized test suites
+- ✅ **Authentication Testing** comprehensive untuk register, login, protected endpoints
 - ✅ **API Testing** comprehensive untuk semua endpoints
 - ✅ **Photo Upload Testing** dengan security dan performance tests
 - ✅ **Interactive Testing** dengan HTML form untuk manual verification
@@ -797,6 +975,7 @@ docker-compose down && docker-compose up --build
 
 ### Testing Coverage:
 - ✅ **Organized Test Framework** dengan structured directories
+- ✅ **Authentication Tests** untuk JWT system end-to-end
 - ✅ **API Functionality Tests** untuk semua endpoints
 - ✅ **Photo Upload Tests** dengan security dan performance coverage
 - ✅ **Interactive Testing** dengan HTML forms
@@ -811,26 +990,33 @@ docker-compose down && docker-compose up --build
 ## 🛠️ Known Issues & Fixes
 
 ### Recently Fixed Issues:
-1. **✅ Freelancer Prevention**: Implemented kantor_id WAJIB requirement - no more freelancer allowed
-2. **✅ Database Validation**: Added database existence check untuk kantor_id validation
-3. **✅ Photo Upload Security**: Comprehensive file validation dengan MIME type checking
-4. **✅ Test Organization**: Organized scattered test files into structured testing framework
-5. **✅ File Management**: Automatic cleanup dan organized storage system
-6. **✅ Foreign Key Constraints**: Updated to RESTRICT untuk prevent data inconsistency
-7. **✅ Docker Build Issues**: Fixed Rust edition compatibility dan Cargo.lock handling
-8. **✅ Route Parameter Syntax**: Changed `{id}` to `:id` untuk proper Axum routing
-9. **✅ Variable Shadowing**: Fixed konflik nama variabel dalam handler parameters
-10. **✅ Database Migration**: Implemented auto-migration pada container startup
+1. **✅ JWT Authentication System**: Implemented complete authentication dengan register, login, protected endpoints
+2. **✅ Password Security**: bcrypt hashing dengan secure salt rounds untuk user passwords
+3. **✅ Custom JWT Implementation**: HMAC-SHA256 JWT untuk ARM64 Windows compatibility
+4. **✅ Freelancer Prevention**: Implemented kantor_id WAJIB requirement - no more freelancer allowed
+5. **✅ Database Validation**: Added database existence check untuk kantor_id validation
+6. **✅ Photo Upload Security**: Comprehensive file validation dengan MIME type checking
+7. **✅ Test Organization**: Organized scattered test files into structured testing framework
+8. **✅ File Management**: Automatic cleanup dan organized storage system
+9. **✅ Foreign Key Constraints**: Updated to RESTRICT untuk prevent data inconsistency
+10. **✅ Docker Build Issues**: Fixed Rust edition compatibility dan Cargo.lock handling
+11. **✅ Route Parameter Syntax**: Changed `{id}` to `:id` untuk proper Axum routing
+12. **✅ Variable Shadowing**: Fixed konflik nama variabel dalam handler parameters
+13. **✅ Database Migration**: Implemented auto-migration pada container startup
 
 ### Current Limitations:
 - Database seeding masih manual via init.sql
-- Belum ada authentication/authorization system
+- Belum ada role-based authorization system (hanya basic authentication)
 - Belum ada pagination untuk large datasets
 - Belum ada audit logging untuk data changes
 - Photo resizing/thumbnail generation belum implemented
+- Belum ada password reset functionality
+- JWT token refresh mechanism belum implemented
 
 ## 🚀 Future Enhancements:
-- [ ] Authentication & Authorization dengan JWT
+- [ ] Role-based Authorization dengan JWT claims
+- [ ] JWT Token Refresh mechanism
+- [ ] Password Reset functionality dengan email verification
 - [ ] Pagination dan filtering untuk endpoints
 - [ ] Audit logging system
 - [ ] API documentation dengan OpenAPI/Swagger
@@ -859,7 +1045,7 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 ---
 
 **Author**: [jauharianggara]  
-**Version**: 3.0.0  
+**Version**: 4.0.0  
 **Last Updated**: October 29, 2025
 
 ## 📁 Documentation & Project Organization

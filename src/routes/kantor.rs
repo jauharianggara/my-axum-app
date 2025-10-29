@@ -2,6 +2,7 @@ use axum::{
     routing::{get, post, put, delete},
     Router,
 };
+use sea_orm::DatabaseConnection;
 use crate::handlers::kantor::{
     get_all_kantor,
     get_kantor_by_id,
@@ -10,7 +11,7 @@ use crate::handlers::kantor::{
     delete_kantor,
 };
 
-pub fn create_kantor_routes() -> Router {
+pub fn create_kantor_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/", get(get_all_kantor))
         .route("/:id", get(get_kantor_by_id))

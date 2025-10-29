@@ -2,6 +2,7 @@ use axum::{
     routing::{get, post, put, delete},
     Router,
 };
+use sea_orm::DatabaseConnection;
 use crate::handlers::karyawan::{
     get_all_karyawan,
     get_all_karyawan_with_kantor,
@@ -15,7 +16,7 @@ use crate::handlers::karyawan::{
     delete_karyawan,
 };
 
-pub fn create_karyawan_routes() -> Router {
+pub fn create_karyawan_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/", get(get_all_karyawan))
         .route("/with-kantor", get(get_all_karyawan_with_kantor))

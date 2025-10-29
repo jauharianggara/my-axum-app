@@ -1,4 +1,4 @@
-use axum::{Router, routing::get, Extension};
+use axum::{Router, routing::get};
 use tokio::net::TcpListener;
 use std::env;
 
@@ -9,11 +9,11 @@ mod models;
 mod routes;
 mod validators;
 mod services;
+mod middleware;
 
 use database::establish_connection;
 use handlers::health::health_check;
-use routes::create_kantor_routes;
-use routes::create_karyawan_routes;
+use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes};
 
 #[tokio::main]
 async fn main() {
@@ -36,10 +36,15 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/health", get(health_check))
+        .nest_service("/uploads", tower_http::services::ServeDir::new("uploads"))
+        // Public authentication routes (no auth required)
+        .nest("/api/auth", public_auth_routes())
+        // Protected authentication routes (auth required)  
+        .nest("/api/user", auth_routes())
+        // Protected API routes (auth required in future)
         .nest("/api/karyawans", create_karyawan_routes())
         .nest("/api/kantors", create_kantor_routes())
-        .nest_service("/uploads", tower_http::services::ServeDir::new("uploads"))
-        .layer(Extension(db));
+        .with_state(db);
 
     // Get host and port from environment or use defaults
     let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
