@@ -2,20 +2,21 @@
 
 REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan Axum framework.
 
-## ✨ Fitur
+## ✨ Fitur Utama
 
 - **CRUD Operations**: Create, Read, Update, Delete untuk karyawan dan kantor
-- **Database Integration**: MySQL database dengan Sea-ORM
-- **Data Validation**: Validasi komprehensif untuk semua input data
+- **Photo Upload Management**: Upload, update, dan delete foto karyawan dengan validasi keamanan
+- **Database Integration**: MySQL database dengan Sea-ORM dan automated migrations
+- **Comprehensive Validation**: Validasi data yang ketat dengan database existence check
+- **Kantor Relationship**: Sistem kantor wajib untuk setiap karyawan (no freelancer)
 - **JSON Responses**: Response API yang konsisten dalam format JSON
-- **Error Handling**: Penanganan error yang informatif
-- **Clean Architecture**: Struktur kode yang terorganisir dengan baik
+- **Error Handling**: Penanganan error yang informatif dan user-friendly
+- **Clean Architecture**: Struktur kode yang terorganisir dengan separation of concerns
 - **Geographic Validation**: Validasi koordinat longitude dan latitude untuk kantor
-- **Database Migrations**: Automated schema management
-- **Connection Pooling**: Efficient database connection management
+- **File Management**: Sistem upload file dengan keamanan dan validasi format
+- **Comprehensive Testing**: Framework testing yang terorganisir dengan automation
 - **Docker Support**: Full containerization dengan Docker Compose
-- **Relationship Management**: Support untuk relasi karyawan-kantor
-- **Auto Migration**: Database schema auto-migration pada startup container
+- **Auto Migration**: Database schema auto-migration pada startup
 
 ## 🚀 Teknologi
 
@@ -26,6 +27,8 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 - **Serde**: JSON serialization/deserialization
 - **Validator**: Data validation dengan derive macros
 - **Tokio**: Async runtime
+- **Tower-HTTP**: HTTP middleware untuk file serving
+- **Multipart**: File upload handling dengan validasi keamanan
 - **Docker**: Containerization dengan multi-stage builds
 - **Docker Compose**: Orchestration untuk development environment
 
@@ -38,7 +41,7 @@ src/
 ├── handlers/               # HTTP request handlers
 │   ├── mod.rs
 │   ├── health.rs          # Health check handler
-│   ├── karyawan.rs        # CRUD handlers untuk karyawan
+│   ├── karyawan.rs        # CRUD handlers untuk karyawan + foto upload
 │   └── kantor.rs          # CRUD handlers untuk kantor
 ├── models/                 # Data structures (Sea-ORM entities)
 │   ├── mod.rs
@@ -49,9 +52,12 @@ src/
 │   ├── mod.rs
 │   ├── karyawan.rs        # Karyawan routes
 │   └── kantor.rs          # Kantor routes
+├── services/               # Business logic services
+│   ├── mod.rs
+│   └── file_upload.rs     # File upload service dengan validasi
 └── validators/             # Custom validation logic
     ├── mod.rs
-    ├── karyawan.rs        # Karyawan validation functions
+    ├── karyawan.rs        # Karyawan validation + database checks
     └── kantor.rs          # Kantor validation functions
 migration/                  # Database migrations
 ├── src/
@@ -59,6 +65,27 @@ migration/                  # Database migrations
 │   ├── main.rs            # Migration CLI
 │   └── m2024*.rs          # Individual migration files
 └── Cargo.toml             # Migration dependencies
+tests/                      # Organized testing framework
+├── api/                   # API functionality tests
+│   ├── basic_api_test.py           # Core API tests
+│   ├── karyawan_crud_test.py       # Karyawan CRUD tests
+│   └── kantor_crud_test.py         # Kantor CRUD tests
+├── photo/                 # Photo upload testing
+│   ├── photo_upload_test.py        # Upload functionality
+│   ├── photo_validation_test.py    # Security validation
+│   ├── photo_performance_test.py   # Performance tests
+│   └── photo_security_test.py      # Security tests
+├── html/                  # Interactive testing
+│   └── test_photo_form.html        # Web form for manual testing
+├── scripts/               # Test automation
+│   ├── simple_test.ps1             # PowerShell test runner
+│   └── quick_test.ps1              # Quick validation script
+├── utils/                 # Test utilities
+│   └── test_utils.py               # Common test functions
+└── README.md              # Testing documentation
+uploads/                    # File upload directory
+└── karyawan/
+    └── photos/            # Karyawan photo storage
 ```
 
 ## 🛠️ Instalasi & Menjalankan
@@ -174,8 +201,16 @@ migration/                  # Database migrations
 | GET | `/api/karyawans/:id` | Dapatkan karyawan berdasarkan ID |
 | GET | `/api/karyawans/:id/with-kantor` | Dapatkan karyawan dengan info kantor berdasarkan ID |
 | POST | `/api/karyawans` | Buat karyawan baru |
+| POST | `/api/karyawans/with-photo` | Buat karyawan baru dengan foto |
 | PUT | `/api/karyawans/:id` | Update karyawan |
+| POST | `/api/karyawans/:id/photo` | Upload/update foto karyawan |
+| DELETE | `/api/karyawans/:id/photo` | Hapus foto karyawan |
 | DELETE | `/api/karyawans/:id` | Hapus karyawan |
+
+#### Static File Serving
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| GET | `/uploads/karyawan/photos/:filename` | Akses foto karyawan |
 
 #### Kantor Management
 | Method | Endpoint | Deskripsi |
@@ -197,11 +232,16 @@ CREATE TABLE karyawan (
   nama VARCHAR(50) NOT NULL,
   posisi VARCHAR(30) NOT NULL,
   gaji INT NOT NULL,
-  kantor_id INT NOT NULL,
+  kantor_id INT NOT NULL,                    -- WAJIB DIISI (no freelancer)
+  foto_path VARCHAR(255) NULL,               -- Path ke file foto
+  foto_original_name VARCHAR(255) NULL,      -- Nama file asli
+  foto_size BIGINT NULL,                     -- Ukuran file dalam bytes
+  foto_mime_type VARCHAR(255) NULL,          -- MIME type (image/jpeg, dll)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY `idx_karyawan_kantor_id` (`kantor_id`),
-  CONSTRAINT `fk_karyawan_kantor` FOREIGN KEY (`kantor_id`) REFERENCES `kantor` (`id`)
+  CONSTRAINT `fk_karyawan_kantor_id` FOREIGN KEY (`kantor_id`) 
+    REFERENCES `kantor` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 ```
 
@@ -228,6 +268,10 @@ CREATE TABLE kantor (
   "posisi": "Software Engineer", 
   "gaji": 8000000,
   "kantor_id": 2,
+  "foto_path": "uploads/karyawan/photos/1_photo_1699234567.jpg",
+  "foto_original_name": "profile.jpg",
+  "foto_size": 245760,
+  "foto_mime_type": "image/jpeg",
   "created_at": "2024-10-28T10:30:00Z",
   "updated_at": "2024-10-28T10:30:00Z"
 }
@@ -242,6 +286,10 @@ CREATE TABLE kantor (
   "gaji": 8000000,
   "kantor_id": 2,
   "kantor_nama": "Kantor Jakarta",
+  "foto_path": "uploads/karyawan/photos/1_photo_1699234567.jpg",
+  "foto_original_name": "profile.jpg",
+  "foto_size": 245760,
+  "foto_mime_type": "image/jpeg",
   "created_at": "2024-10-28T10:30:00Z",
   "updated_at": "2024-10-28T10:30:00Z"
 }
@@ -262,7 +310,7 @@ CREATE TABLE kantor (
 
 ### Request DTOs
 
-### Create Karyawan Request
+#### Create Karyawan Request (JSON)
 ```json
 {
   "nama": "Nama Karyawan",
@@ -272,7 +320,27 @@ CREATE TABLE kantor (
 }
 ```
 
-### Create Kantor Request
+#### Create Karyawan with Photo Request (Multipart Form)
+```
+Content-Type: multipart/form-data
+
+Fields:
+- nama: "Nama Karyawan"
+- posisi: "Posisi Jabatan" 
+- gaji: "8000000"
+- kantor_id: "2"
+- foto: [binary file data] (JPEG/PNG/GIF, max 5MB)
+```
+
+#### Upload Photo Request (Multipart Form)
+```
+Content-Type: multipart/form-data
+
+Fields:
+- foto: [binary file data] (JPEG/PNG/GIF, max 5MB)
+```
+
+#### Create Kantor Request
 ```json
 {
   "nama": "Nama Kantor",
@@ -313,10 +381,15 @@ CREATE TABLE kantor (
   - Minimal 1,000,000 (1 juta)
   - Maksimal 100,000,000 (100 juta)
 - **Kantor ID**: 
-  - Required
+  - **WAJIB DIISI** (tidak boleh kosong atau 0)
   - Harus berupa angka positif yang valid
-  - Harus mereferensi kantor yang ada
-- **ID**: Harus berupa angka positif yang valid
+  - **Harus mereferensi kantor yang ada di database**
+  - Database existence validation
+- **Foto** (opsional):
+  - Format: JPEG, PNG, GIF
+  - Ukuran maksimal: 5MB
+  - Validasi MIME type dan ekstensi file
+  - Security validation untuk prevent malicious files
 
 ### Kantor Validation:
 - **Nama**: Required, minimal 2 karakter, maksimal 100 karakter
@@ -325,6 +398,14 @@ CREATE TABLE kantor (
 - **Latitude**: Required, range -90 hingga 90
 - **ID**: Harus berupa angka positif yang valid
 
+### File Upload Validation:
+- **File Size**: Maksimal 5MB
+- **File Type**: Hanya JPEG, PNG, GIF yang diperbolehkan
+- **MIME Type Check**: Validasi actual file content, bukan hanya ekstensi
+- **Security**: Prevent upload file executable atau script
+- **Naming**: Auto-generated filename untuk prevent collision
+- **Storage**: Organized dalam struktur folder `/uploads/karyawan/photos/`
+
 ### Contoh Error Validasi:
 ```json
 {
@@ -332,27 +413,103 @@ CREATE TABLE kantor (
   "message": "Validation failed",
   "data": null,
   "errors": [
-    "gaji: Gaji harus antara 1000000 dan 50000000",
-    "longitude: Longitude harus antara -180 hingga 180"
+    "gaji: Gaji harus antara 1000000 dan 100000000",
+    "kantor_id: kantor_id wajib diisi dan harus berupa angka positif yang valid"
+  ]
+}
+```
+
+### Contoh Error Database Validation:
+```json
+{
+  "success": false,
+  "message": "Invalid kantor_id",
+  "data": null,
+  "errors": [
+    "Kantor dengan ID 999 tidak ditemukan di database"
+  ]
+}
+```
+
+### Contoh Error File Upload:
+```json
+{
+  "success": false,
+  "message": "Failed to upload photo",
+  "data": null,
+  "errors": [
+    "File size exceeds maximum allowed size of 5MB"
   ]
 }
 ```
 
 ## 🧪 Testing
 
-### Automated Testing dengan Schemathesis
+### Organized Testing Framework
 
-Project ini include comprehensive API testing menggunakan **Schemathesis** - property-based testing tool yang generate test cases otomatis berdasarkan OpenAPI schema.
+Project ini memiliki **testing framework yang terorganisir** dengan struktur folder yang rapi dan automation scripts:
+
+```
+tests/
+├── api/                   # API functionality tests
+├── photo/                 # Photo upload comprehensive tests
+├── html/                  # Interactive browser testing
+├── scripts/               # PowerShell automation
+├── utils/                 # Common test utilities
+└── README.md              # Testing documentation
+```
 
 #### Quick Start Testing:
 ```powershell
-# Option 1: Docker + Schemathesis Integration (Recommended)
+# Master test runner (all tests)
+python run_tests.py
+
+# PowerShell automation
+.\tests\scripts\simple_test.ps1
+
+# Specific test suites
+python tests\api\basic_api_test.py
+python tests\photo\photo_upload_test.py
+python tests\photo\photo_security_test.py
+```
+
+### Comprehensive Test Coverage:
+
+#### 1. **API Functionality Tests** (`tests/api/`)
+- ✅ **Basic API Tests**: Health checks, endpoint availability
+- ✅ **Karyawan CRUD Tests**: Complete CRUD operations dengan validasi
+- ✅ **Kantor CRUD Tests**: Complete CRUD operations dengan geographic validation
+- ✅ **Relationship Tests**: Karyawan-kantor relationship testing
+- ✅ **Database Validation Tests**: Kantor existence checking
+
+#### 2. **Photo Upload Tests** (`tests/photo/`)
+- ✅ **Upload Functionality**: Create dengan foto, upload ke existing karyawan
+- ✅ **Security Validation**: Malicious file prevention, MIME type checking
+- ✅ **Performance Tests**: Multiple upload, large file handling
+- ✅ **File Management**: Delete, replace, cleanup operations
+
+#### 3. **Interactive Testing** (`tests/html/`)
+- ✅ **Web Form**: Browser-based testing form untuk manual verification
+- ✅ **File Upload UI**: Drag-and-drop interface untuk foto testing
+
+#### 4. **Test Automation** (`tests/scripts/`)
+- ✅ **PowerShell Scripts**: Cross-platform automation untuk Windows
+- ✅ **Master Runners**: Orchestrated test execution dengan reporting
+- ✅ **Quick Tests**: Fast validation untuk development workflow
+
+### Legacy Schemathesis Testing
+
+Project ini juga include **Schemathesis** - property-based testing tool untuk comprehensive API testing:
+
+#### Schemathesis Quick Start:
+```powershell
+# Docker + Schemathesis Integration (Recommended)
 .\docker_with_schemathesis.ps1
 
-# Option 2: Standalone Schemathesis (API harus sudah running)
+# Standalone Schemathesis (API harus sudah running)
 .\run_schemathesis_tests.ps1
 
-# Option 3: Manual Python script
+# Manual Python script
 python schemathesis_test.py
 ```
 
@@ -364,11 +521,11 @@ python schemathesis_test.py
 - ✅ **Custom hooks** untuk valid test data generation
 - ✅ **Integration dengan Docker** untuk full environment testing
 
-**📖 Untuk panduan lengkap Schemathesis, lihat [SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md)**
+**📖 Untuk panduan lengkap testing, lihat [tests/README.md](tests/README.md)**
 
 ### Manual Testing Scripts
 
-Test Scripts Tersedia:
+Legacy Test Scripts:
 
 1. **Test Karyawan API:**
    ```powershell
@@ -395,6 +552,11 @@ Test Scripts Tersedia:
    .\test_validation.ps1
    ```
 
+6. **Test Kantor Required:**
+   ```powershell
+   python test_kantor_required.py
+   ```
+
 ### Manual Testing dengan PowerShell
 
 **Test Karyawan:**
@@ -408,9 +570,15 @@ Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/with-kantor -UseBasic
 # Get specific karyawan
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/2 -UseBasicParsing
 
-# Create new karyawan
+# Create new karyawan (kantor_id WAJIB)
 $body = '{"nama":"John Doe","posisi":"Developer","gaji":"8000000","kantor_id":"2"}'
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
+
+# Upload photo to existing karyawan
+$form = @{
+    foto = Get-Item "path/to/photo.jpg"
+}
+Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/2/photo -Method POST -Form $form
 ```
 
 **Test Kantor:**
@@ -429,9 +597,23 @@ Invoke-WebRequest -Uri http://localhost:8080/api/kantors -Method POST -Body $bod
 curl http://localhost:8080/api/karyawans
 curl http://localhost:8080/api/karyawans/2
 curl http://localhost:8080/api/karyawans/2/with-kantor
+
+# Create karyawan (kantor_id WAJIB)
 curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{"nama":"Jane Doe","posisi":"Manager","gaji":"12000000","kantor_id":"2"}'
+
+# Upload photo
+curl -X POST http://localhost:8080/api/karyawans/2/photo \
+  -F "foto=@path/to/photo.jpg"
+
+# Create karyawan with photo
+curl -X POST http://localhost:8080/api/karyawans/with-photo \
+  -F "nama=Test User" \
+  -F "posisi=Developer" \
+  -F "gaji=8000000" \
+  -F "kantor_id=2" \
+  -F "foto=@path/to/photo.jpg"
 
 # Test kantor endpoints
 curl http://localhost:8080/api/kantors
@@ -498,34 +680,78 @@ docker-compose down && docker-compose up --build
 - **Connection Pooling**: Efficient database connection management
 - **Migrations**: Automated schema versioning dan management
 - **Entity Models**: Type-safe database models dengan validations
+- **Foreign Key Constraints**: RESTRICT policy untuk data integrity
+
+### Business Logic Layer:
+- **Services**: File upload service dengan keamanan dan validasi
+- **Validators**: Database existence validation dan business rules
+- **Custom Validation**: Comprehensive input validation dengan error messages
+- **File Management**: Organized file storage dengan automatic cleanup
 
 ### Separation of Concerns:
 - **Database**: Connection management dan ORM configuration
-- **Handlers**: HTTP requests dan database operations
+- **Handlers**: HTTP requests dan business logic orchestration
 - **Models**: Sea-ORM entities dan request/response DTOs
+- **Services**: Reusable business logic (file upload, etc.)
 - **Validators**: Custom validation logic untuk business rules
 - **Routes**: Definisi routing yang terpisah dari main.rs
 
 ### Design Patterns:
 - **Repository Pattern**: Database operations encapsulated dalam Sea-ORM entities
+- **Service Layer Pattern**: Business logic separated dalam service modules
 - **Modular Architecture**: Setiap domain (karyawan, kantor) memiliki module terpisah
 - **Dependency Injection**: Database connection di-inject ke handlers via Axum Extension
 - **Error Handling**: Centralized error handling dengan custom response types
 - **Clean Code**: Separation of concerns dengan folder structure yang jelas
 - **Migration Pattern**: Database schema changes managed via versioned migrations
 
+### Security & File Management:
+- **File Upload Security**: MIME type validation, size limits, malicious file prevention
+- **Organized Storage**: Structured file organization (`/uploads/karyawan/photos/`)
+- **Unique Naming**: Timestamp-based naming untuk prevent collision
+- **Cleanup**: Automatic file cleanup saat delete karyawan atau replace foto
+- **Validation**: Multiple layers of validation (extension, MIME, size, content)
+
 ### Module Structure:
 ```
 ├── database.rs        # Database connection layer
-├── handlers/          # HTTP layer dengan database operations
+├── handlers/          # HTTP layer dengan business logic
 ├── models/           # Sea-ORM entity layer
-├── validators/       # Business logic layer
+├── services/         # Business logic layer (file upload, etc.)
+├── validators/       # Business logic validation layer
 ├── routes/          # Routing layer
 ├── migration/        # Database schema management
 └── main.rs         # Application setup dengan database initialization
 ```
 
 ## 🎯 Features Teruji
+
+### Photo Upload & File Management:
+- ✅ **File Upload** dengan multipart form data handling
+- ✅ **Security Validation** dengan MIME type checking dan malicious file prevention
+- ✅ **File Size Limits** maksimal 5MB dengan proper error handling
+- ✅ **Supported Formats** JPEG, PNG, GIF dengan content validation
+- ✅ **Organized Storage** dalam struktur `/uploads/karyawan/photos/`
+- ✅ **Unique Naming** dengan timestamp untuk prevent collision
+- ✅ **Automatic Cleanup** saat delete karyawan atau replace foto
+- ✅ **Database Integration** foto metadata tersimpan di database
+
+### Enhanced Validation System:
+- ✅ **Kantor ID Validation** dengan database existence check
+- ✅ **Required Kantor** - tidak ada freelancer yang diperbolehkan
+- ✅ **Database Constraint Validation** dengan foreign key RESTRICT
+- ✅ **Comprehensive Error Messages** yang informatif dan user-friendly
+- ✅ **Input Sanitization** dan security validation
+- ✅ **Business Rules Enforcement** di multiple layers
+
+### Organized Testing Framework:
+- ✅ **Structured Test Directory** dengan organized test suites
+- ✅ **API Testing** comprehensive untuk semua endpoints
+- ✅ **Photo Upload Testing** dengan security dan performance tests
+- ✅ **Interactive Testing** dengan HTML form untuk manual verification
+- ✅ **PowerShell Automation** untuk Windows environment
+- ✅ **Master Test Runners** dengan orchestrated execution
+- ✅ **Test Utilities** untuk reusable testing functions
 
 ### Docker & Containerization:
 - ✅ Multi-stage Docker build dengan Rust nightly
@@ -545,11 +771,14 @@ docker-compose down && docker-compose up --build
 
 ### Karyawan Management:
 - ✅ CRUD operations lengkap dengan database persistence
-- ✅ Validation gaji dengan string input
-- ✅ Error handling untuk ID invalid
-- ✅ Custom validation functions
-- ✅ Database constraint validation
-- ✅ Relationship queries dengan kantor
+- ✅ **Kantor ID WAJIB** - tidak ada freelancer (kantor_id = 0 rejected)
+- ✅ **Database Validation** untuk kantor existence checking
+- ✅ Validation gaji dengan string input dan range checking
+- ✅ Error handling untuk ID invalid dan custom error messages
+- ✅ **Photo Upload Integration** dengan create dan update operations
+- ✅ **Photo Management** upload, update, delete dengan security validation
+- ✅ Database constraint validation dengan foreign key RESTRICT
+- ✅ Relationship queries dengan kantor information
 - ✅ Endpoint dengan dan tanpa kantor info
 
 ### Kantor Management:
@@ -567,29 +796,38 @@ docker-compose down && docker-compose up --build
 - ✅ Comprehensive error handling
 
 ### Testing Coverage:
-- ✅ Unit tests untuk validation functions
-- ✅ Integration tests untuk semua endpoints
-- ✅ Error handling tests
-- ✅ Boundary value tests
-- ✅ Relationship testing
-- ✅ PowerShell test scripts
-- ✅ **Schemathesis property-based testing**
+- ✅ **Organized Test Framework** dengan structured directories
+- ✅ **API Functionality Tests** untuk semua endpoints
+- ✅ **Photo Upload Tests** dengan security dan performance coverage
+- ✅ **Interactive Testing** dengan HTML forms
+- ✅ **PowerShell Automation** untuk Windows environment
+- ✅ **Legacy Schemathesis** property-based testing
+- ✅ **Validation Tests** untuk kantor required dan database checks
+- ✅ **Error Handling Tests** comprehensive error scenarios
+- ✅ **Boundary Value Tests** untuk edge cases
+- ✅ **Relationship Testing** karyawan-kantor integration
 - ✅ **Automated Docker + API integration testing**
 
 ## 🛠️ Known Issues & Fixes
 
 ### Recently Fixed Issues:
-1. **✅ Docker Build Issues**: Fixed Rust edition compatibility dan Cargo.lock handling
-2. **✅ Route Parameter Syntax**: Changed `{id}` to `:id` untuk proper Axum routing
-3. **✅ Variable Shadowing**: Fixed konflik nama variabel dalam handler parameters
-4. **✅ Database Migration**: Implemented auto-migration pada container startup
-5. **✅ Foreign Key Relations**: Added proper karyawan-kantor relationship
+1. **✅ Freelancer Prevention**: Implemented kantor_id WAJIB requirement - no more freelancer allowed
+2. **✅ Database Validation**: Added database existence check untuk kantor_id validation
+3. **✅ Photo Upload Security**: Comprehensive file validation dengan MIME type checking
+4. **✅ Test Organization**: Organized scattered test files into structured testing framework
+5. **✅ File Management**: Automatic cleanup dan organized storage system
+6. **✅ Foreign Key Constraints**: Updated to RESTRICT untuk prevent data inconsistency
+7. **✅ Docker Build Issues**: Fixed Rust edition compatibility dan Cargo.lock handling
+8. **✅ Route Parameter Syntax**: Changed `{id}` to `:id` untuk proper Axum routing
+9. **✅ Variable Shadowing**: Fixed konflik nama variabel dalam handler parameters
+10. **✅ Database Migration**: Implemented auto-migration pada container startup
 
 ### Current Limitations:
 - Database seeding masih manual via init.sql
 - Belum ada authentication/authorization system
 - Belum ada pagination untuk large datasets
 - Belum ada audit logging untuk data changes
+- Photo resizing/thumbnail generation belum implemented
 
 ## 🚀 Future Enhancements:
 - [ ] Authentication & Authorization dengan JWT
@@ -599,7 +837,12 @@ docker-compose down && docker-compose up --build
 - [ ] Rate limiting dan caching
 - [ ] Background job processing
 - [ ] Email notifications
-- [ ] File upload support untuk avatar karyawan
+- [ ] **Photo Processing**: Image resizing, thumbnail generation
+- [ ] **Advanced File Management**: Multiple photo support, gallery view
+- [ ] **Enhanced Security**: File virus scanning, advanced validation
+- [ ] **Performance**: Image optimization, lazy loading
+- [ ] **User Management**: Role-based access control
+- [ ] **Reporting**: Analytics dan reporting system
 
 ## 🤝 Contributing
 
@@ -616,7 +859,7 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 ---
 
 **Author**: [jauharianggara]  
-**Version**: 2.1.0  
+**Version**: 3.0.0  
 **Last Updated**: October 29, 2025
 
 ## 📁 Additional Documentation
@@ -624,4 +867,9 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 - [DATABASE_SETUP.md](DATABASE_SETUP.md) - Panduan setup database lengkap
 - [DOCKER_README.md](DOCKER_README.md) - Panduan Docker deployment lengkap
 - [SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md) - Comprehensive Schemathesis testing guide
+- [tests/README.md](tests/README.md) - Organized testing framework documentation
+- [FOTO_FEATURE_DOCUMENTATION.md](FOTO_FEATURE_DOCUMENTATION.md) - Photo upload feature documentation
+- [KANTOR_VALIDATION_SUMMARY.md](KANTOR_VALIDATION_SUMMARY.md) - Kantor validation implementation
+- [KANTOR_REQUIRED_SUMMARY.md](KANTOR_REQUIRED_SUMMARY.md) - Kantor required enforcement
+- [TEST_ORGANIZATION_SUMMARY.md](TEST_ORGANIZATION_SUMMARY.md) - Testing framework organization
 - [README_NEW.md](README_NEW.md) - Additional project information
