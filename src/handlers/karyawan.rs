@@ -9,7 +9,7 @@ use crate::models::{
 use crate::validators::karyawan::{handle_validation_errors, validate_id, validate_kantor_id_exists};
 use crate::services::file_upload::{FileUploadService, UploadedFile};
 use axum::{
-    extract::{Extension, Json as ExtractJson, Path, Multipart},
+    extract::{State, Json as ExtractJson, Path, Multipart},
     response::Json,
 };
 use sea_orm::{
@@ -36,7 +36,7 @@ pub struct KaryawanWithKantor {
 }
 
 pub async fn get_all_karyawan_with_kantor(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<Vec<KaryawanWithKantor>>> {
     match KaryawanEntity::find().all(&db).await {
         Ok(karyawans) => {
@@ -81,7 +81,7 @@ pub async fn get_all_karyawan_with_kantor(
 }
 
 pub async fn get_all_karyawan(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<Vec<Karyawan>>> {
     match KaryawanEntity::find().all(&db).await {
         Ok(karyawans) => Json(ApiResponse::success(
@@ -97,7 +97,7 @@ pub async fn get_all_karyawan(
 
 pub async fn get_karyawan_with_kantor_by_id(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<KaryawanWithKantor>> {
     // Validasi ID menggunakan function
     let id = match validate_id(&id_str) {
@@ -154,7 +154,7 @@ pub async fn get_karyawan_with_kantor_by_id(
 
 pub async fn get_karyawan_by_id(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
     let id = match validate_id(&id_str) {
@@ -184,7 +184,7 @@ pub async fn get_karyawan_by_id(
 }
 
 pub async fn create_karyawan(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<CreateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validate the payload
@@ -252,7 +252,7 @@ pub async fn create_karyawan(
 
 pub async fn update_karyawan(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
@@ -342,7 +342,7 @@ pub async fn update_karyawan(
 
 pub async fn delete_karyawan(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
     let id = match validate_id(&id_str) {
@@ -390,7 +390,7 @@ pub async fn delete_karyawan(
 }
 
 pub async fn create_karyawan_with_photo(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     mut multipart: Multipart,
 ) -> Json<ApiResponse<Karyawan>> {
     let mut karyawan_data: Option<CreateKaryawanRequest> = None;
@@ -541,7 +541,7 @@ pub async fn create_karyawan_with_photo(
 
 pub async fn upload_karyawan_photo(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     mut multipart: Multipart,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID
@@ -627,7 +627,7 @@ pub async fn upload_karyawan_photo(
 
 pub async fn delete_karyawan_photo(
     Path(id_str): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID
     let id = match validate_id(&id_str) {

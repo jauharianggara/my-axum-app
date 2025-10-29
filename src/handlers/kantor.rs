@@ -3,7 +3,7 @@ use crate::validators::kantor::{
     handle_validation_errors, validate_id, validate_latitude, validate_longitude,
 };
 use axum::{
-    extract::{Json as ExtractJson, Path, Extension},
+    extract::{Json as ExtractJson, Path, State},
     response::Json,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, ModelTrait};
@@ -11,7 +11,7 @@ use validator::Validate;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
-pub async fn get_all_kantor(Extension(db): Extension<DatabaseConnection>) -> Json<ApiResponse<Vec<Kantor>>> {
+pub async fn get_all_kantor(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Kantor>>> {
     match KantorEntity::find().all(&db).await {
         Ok(kantors) => {
             Json(ApiResponse::success(
@@ -30,7 +30,7 @@ pub async fn get_all_kantor(Extension(db): Extension<DatabaseConnection>) -> Jso
 
 pub async fn get_kantor_by_id(
     Path(id): Path<String>,
-    Extension(db): Extension<DatabaseConnection>
+    State(db): State<DatabaseConnection>
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
     let id = match validate_id(&id) {
@@ -66,7 +66,7 @@ pub async fn get_kantor_by_id(
 }
 
 pub async fn create_kantor(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<CreateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi payload
@@ -148,7 +148,7 @@ pub async fn create_kantor(
 
 pub async fn update_kantor(
     Path(id): Path<String>,
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
     // Validasi ID menggunakan function
@@ -256,7 +256,7 @@ pub async fn update_kantor(
 
 pub async fn delete_kantor(
     Path(id): Path<String>,
-    Extension(db): Extension<DatabaseConnection>
+    State(db): State<DatabaseConnection>
 ) -> Json<ApiResponse<()>> {
     // Validasi ID menggunakan function
     let id = match validate_id(&id) {

@@ -1,4 +1,4 @@
-use axum::{Router, routing::get};
+use axum::{Router, routing::get, middleware::from_fn_with_state};
 use tokio::net::TcpListener;
 use std::env;
 
@@ -14,6 +14,7 @@ mod middleware;
 use database::establish_connection;
 use handlers::health::health_check;
 use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes};
+use middleware::auth::jwt_auth_layer;
 
 #[tokio::main]
 async fn main() {
@@ -41,9 +42,17 @@ async fn main() {
         .nest("/api/auth", public_auth_routes())
         // Protected authentication routes (auth required)  
         .nest("/api/user", auth_routes())
-        // Protected API routes (auth required in future)
-        .nest("/api/karyawans", create_karyawan_routes())
-        .nest("/api/kantors", create_kantor_routes())
+        // Protected API routes (auth required)
+        .nest(
+            "/api/karyawans", 
+            create_karyawan_routes()
+                .layer(from_fn_with_state(db.clone(), jwt_auth_layer))
+        )
+        .nest(
+            "/api/kantors", 
+            create_kantor_routes()
+                .layer(from_fn_with_state(db.clone(), jwt_auth_layer))
+        )
         .with_state(db);
 
     // Get host and port from environment or use defaults
