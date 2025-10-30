@@ -36,7 +36,39 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 - **Docker**: Containerization dengan multi-stage builds
 - **Docker Compose**: Orchestration untuk development environment
 
-## 📁 Struktur Project
+## � Dokumentasi API
+
+### OpenAPI/Swagger
+- **File**: `docs/openapi.yaml`
+- **Format**: OpenAPI 3.0.3 specification
+- **Includes**: 
+  - Complete endpoint documentation
+  - Request/response schemas
+  - Authentication flows
+  - Error codes and examples
+  - Photo upload specifications
+
+### Postman Collection
+- **File**: `docs/postman_collection.json`
+- **Features**:
+  - Ready-to-use API collection
+  - Automated authentication flow
+  - Test scripts and validations
+  - Environment variables setup
+  - Complete workflow examples
+  - Security validation tests
+
+### Import ke Postman:
+1. Buka Postman
+2. Click "Import" 
+3. Select `docs/postman_collection.json`
+4. Set environment variable `baseUrl` ke `http://localhost:8080`
+5. Run "Complete Workflow Test" untuk testing otomatis
+
+### Swagger UI (Optional):
+Untuk menggunakan Swagger UI, install swagger-ui dan arahkan ke `docs/openapi.yaml`
+
+## �📁 Struktur Project
 
 ```
 src/

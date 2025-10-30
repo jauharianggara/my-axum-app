@@ -1,0 +1,1542 @@
+{
+	"info": {
+		"_postman_id": "karyawan-kantor-api-collection",
+		"name": "🚀 Karyawan & Kantor Management API",
+		"description": "Comprehensive API collection for Karyawan (Employee) and Kantor (Office) management system with JWT authentication.\n\n## 📖 Quick Start Guide\n\n### 1. Authentication Flow\n1. **Register** new user (optional if you have existing account)\n2. **Login** to get JWT token\n3. Use JWT token in Authorization header for all protected endpoints\n\n### 2. Environment Setup\n- Set `baseUrl` to `http://localhost:8080` for development\n- Token is automatically saved after login for subsequent requests\n\n### 3. Testing Flow\n1. Start with Health Check to verify server\n2. Register/Login to get authentication\n3. Create Kantor (Office) first\n4. Create Karyawan (Employee) with kantor_id\n5. Test CRUD operations\n\n## 🔐 Security Notes\n- All karyawan/kantor endpoints require JWT authentication\n- Token expires in 24 hours\n- Use strong passwords (minimum 6 characters)\n\n## 📁 File Upload\n- Photo uploads support JPEG, PNG, GIF\n- Maximum file size: 5MB\n- Files stored in uploads/karyawan/photos/",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔍 Health & Status",
+			"item": [
+				{
+					"name": "Root - Hello World",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Simple hello world endpoint to verify server is running"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Health check endpoint to verify API server status"
+					},
+					"response": []
+				}
+			],
+			"description": "Basic health check and server status endpoints"
+		},
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful registration",
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has success true\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"User data is returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('username');",
+									"    pm.expect(jsonData.data).to.have.property('email');",
+									"    pm.expect(jsonData.data).to.have.property('full_name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"full_name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user account. Creates a new user with username, email, password, and full name."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful login",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success true\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"JWT token is returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('token');",
+									"    pm.expect(jsonData.data).to.have.property('user');",
+									"    pm.expect(jsonData.data).to.have.property('expires_in');",
+									"});",
+									"",
+									"// Save token for subsequent requests",
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('jwtToken', jsonData.data.token);",
+									"    console.log('JWT Token saved to environment');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username_or_email\": \"testuser\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticate user and receive JWT token. Use username or email with password."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"User profile is returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('username');",
+									"    pm.expect(jsonData.data).to.have.property('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/user/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"me"
+							]
+						},
+						"description": "Get the profile of the currently authenticated user. Requires JWT token."
+					},
+					"response": []
+				}
+			],
+			"description": "User authentication endpoints including registration, login, and profile access",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{jwtToken}}",
+						"type": "string"
+					}
+				]
+			}
+		},
+		{
+			"name": "🏢 Kantor Management",
+			"item": [
+				{
+					"name": "Get All Kantor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/kantors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"kantors"
+							]
+						},
+						"description": "Retrieve list of all office locations"
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Kantor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Kantor created successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"});",
+									"",
+									"// Save kantor ID for other tests",
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('kantorId', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Kantor Pusat Jakarta\",\n    \"alamat\": \"Jl. Sudirman No. 100, Jakarta Pusat\",\n    \"longitude\": 106.827153,\n    \"latitude\": -6.175110\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/kantors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"kantors"
+							]
+						},
+						"description": "Create a new office location with name, address, and coordinates"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Kantor by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Kantor details returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"    pm.expect(jsonData.data).to.have.property('alamat');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/kantors/{{kantorId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"kantors",
+								"{{kantorId}}"
+							]
+						},
+						"description": "Get specific office details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Kantor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Kantor updated successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Kantor Pusat Jakarta Updated\",\n    \"alamat\": \"Jl. Sudirman No. 101, Jakarta Pusat\",\n    \"longitude\": 106.827200,\n    \"latitude\": -6.175150\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/kantors/{{kantorId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"kantors",
+								"{{kantorId}}"
+							]
+						},
+						"description": "Update existing office information"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Kantor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Kantor deleted successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/kantors/{{kantorId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"kantors",
+								"{{kantorId}}"
+							]
+						},
+						"description": "Delete an office location (Note: Will fail if employees are assigned to this office)"
+					},
+					"response": []
+				}
+			],
+			"description": "Office (Kantor) management endpoints for creating, reading, updating, and deleting office locations",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{jwtToken}}",
+						"type": "string"
+					}
+				]
+			}
+		},
+		{
+			"name": "👥 Karyawan Management",
+			"item": [
+				{
+					"name": "Get All Karyawan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans"
+							]
+						},
+						"description": "Retrieve list of all employees"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Karyawan with Kantor Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response includes kantor info\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/with-kantor",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"with-kantor"
+							]
+						},
+						"description": "Retrieve list of all employees with their office information"
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Karyawan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Karyawan created successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"});",
+									"",
+									"// Save karyawan ID for other tests",
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('karyawanId', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Budi Santoso\",\n    \"posisi\": \"Software Engineer\",\n    \"gaji\": \"8000000\",\n    \"kantor_id\": \"{{kantorId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans"
+							]
+						},
+						"description": "Create a new employee record. Requires valid kantor_id from existing office."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Karyawan with Photo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Karyawan with photo created\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('foto_path');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "nama",
+									"value": "Siti Nurhaliza",
+									"type": "text"
+								},
+								{
+									"key": "posisi",
+									"value": "UI/UX Designer",
+									"type": "text"
+								},
+								{
+									"key": "gaji",
+									"value": "7500000",
+									"type": "text"
+								},
+								{
+									"key": "kantor_id",
+									"value": "{{kantorId}}",
+									"type": "text"
+								},
+								{
+									"key": "foto",
+									"type": "file",
+									"src": [],
+									"description": "Upload a photo file (JPEG/PNG/GIF, max 5MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/with-photo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"with-photo"
+							]
+						},
+						"description": "Create a new employee with photo upload. Select a photo file in the 'foto' field."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Karyawan by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Karyawan details returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}"
+							]
+						},
+						"description": "Get specific employee details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Karyawan by ID with Kantor Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Karyawan with kantor info returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('kantor_nama');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}/with-kantor",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}",
+								"with-kantor"
+							]
+						},
+						"description": "Get specific employee with their office information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Karyawan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Karyawan updated successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Budi Santoso Updated\",\n    \"posisi\": \"Senior Software Engineer\",\n    \"gaji\": \"9000000\",\n    \"kantor_id\": \"{{kantorId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}"
+							]
+						},
+						"description": "Update existing employee information"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Karyawan Photo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Photo uploaded successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('foto_path');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "foto",
+									"type": "file",
+									"src": [],
+									"description": "Upload a photo file (JPEG/PNG/GIF, max 5MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}/photo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}",
+								"photo"
+							]
+						},
+						"description": "Upload or update photo for an existing employee"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Karyawan Photo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Photo deleted successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}/photo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}",
+								"photo"
+							]
+						},
+						"description": "Delete photo from an existing employee"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Karyawan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Karyawan deleted successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"karyawans",
+								"{{karyawanId}}"
+							]
+						},
+						"description": "Delete an employee record"
+					},
+					"response": []
+				}
+			],
+			"description": "Employee (Karyawan) management endpoints including photo upload functionality",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{jwtToken}}",
+						"type": "string"
+					}
+				]
+			}
+		},
+		{
+			"name": "📁 File Access",
+			"item": [
+				{
+					"name": "Get Karyawan Photo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/uploads/karyawan/photos/1_photo_1698567890.jpg",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"uploads",
+								"karyawan",
+								"photos",
+								"1_photo_1698567890.jpg"
+							]
+						},
+						"description": "Access uploaded employee photo files. Replace filename with actual photo filename."
+					},
+					"response": []
+				}
+			],
+			"description": "Static file serving endpoints for uploaded photos"
+		},
+		{
+			"name": "🧪 Test Scenarios",
+			"item": [
+				{
+					"name": "Complete Workflow Test",
+					"item": [
+						{
+							"name": "1. Health Check",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "2. Register Test User",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Set unique username for testing",
+											"const timestamp = Date.now();",
+											"pm.environment.set('testUsername', `testuser_${timestamp}`);",
+											"pm.environment.set('testEmail', `test_${timestamp}@example.com`);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Generate unique credentials",
+											"const timestamp = Date.now();",
+											"pm.environment.set('testUsername', `testuser_${timestamp}`);",
+											"pm.environment.set('testEmail', `test_${timestamp}@example.com`);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"{{testUsername}}\",\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"testpass123\",\n    \"full_name\": \"Test User Workflow\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "3. Login Test User",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.environment.set('jwtToken', jsonData.data.token);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username_or_email\": \"{{testUsername}}\",\n    \"password\": \"testpass123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "4. Create Test Kantor",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.environment.set('testKantorId', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwtToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nama\": \"Test Office\",\n    \"alamat\": \"Jl. Test No. 123, Test City\",\n    \"longitude\": 106.827153,\n    \"latitude\": -6.175110\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/kantors",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"kantors"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "5. Create Test Karyawan",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.environment.set('testKaryawanId', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwtToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nama\": \"Test Employee\",\n    \"posisi\": \"Test Position\",\n    \"gaji\": \"5000000\",\n    \"kantor_id\": \"{{testKantorId}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/karyawans",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"karyawans"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "6. Get Karyawan with Kantor",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwtToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/karyawans/{{testKaryawanId}}/with-kantor",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"karyawans",
+										"{{testKaryawanId}}",
+										"with-kantor"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Complete end-to-end workflow test from registration to data retrieval"
+				},
+				{
+					"name": "Security Tests",
+					"item": [
+						{
+							"name": "Access Protected Endpoint Without Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Should return 401 without token\", function () {",
+											"    pm.response.to.have.status(401);",
+											"});",
+											"",
+											"pm.test(\"Should have error message\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData.success).to.be.false;",
+											"    pm.expect(jsonData.errors).to.include('Missing Authorization header');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/karyawans",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"karyawans"
+									]
+								},
+								"description": "Test that protected endpoints reject requests without JWT token"
+							},
+							"response": []
+						},
+						{
+							"name": "Access with Invalid Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Should return 401 with invalid token\", function () {",
+											"    pm.response.to.have.status(401);",
+											"});",
+											"",
+											"pm.test(\"Should have error message\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData.success).to.be.false;",
+											"    pm.expect(jsonData.errors).to.be.an('array');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "invalid.jwt.token",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/karyawans",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"karyawans"
+									]
+								},
+								"description": "Test that invalid JWT tokens are rejected"
+							},
+							"response": []
+						}
+					],
+					"description": "Security validation tests for authentication and authorization"
+				}
+			],
+			"description": "Comprehensive test scenarios covering workflows and security validations"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Executing request to:', pm.request.url);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"console.log('Response status:', pm.response.status);"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string",
+			"description": "Base URL for the API server"
+		},
+		{
+			"key": "jwtToken",
+			"value": "",
+			"type": "string",
+			"description": "JWT token for authentication (automatically set after login)"
+		},
+		{
+			"key": "kantorId",
+			"value": "",
+			"type": "string",
+			"description": "Office ID for testing (automatically set after creating kantor)"
+		},
+		{
+			"key": "karyawanId",
+			"value": "",
+			"type": "string",
+			"description": "Employee ID for testing (automatically set after creating karyawan)"
+		},
+		{
+			"key": "testUsername",
+			"value": "",
+			"type": "string",
+			"description": "Test username for workflow testing"
+		},
+		{
+			"key": "testEmail",
+			"value": "",
+			"type": "string",
+			"description": "Test email for workflow testing"
+		},
+		{
+			"key": "testKantorId",
+			"value": "",
+			"type": "string",
+			"description": "Test office ID for workflow testing"
+		},
+		{
+			"key": "testKaryawanId",
+			"value": "",
+			"type": "string",
+			"description": "Test employee ID for workflow testing"
+		}
+	]
+}
