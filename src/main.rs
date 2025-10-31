@@ -13,7 +13,7 @@ mod middleware;
 
 use database::establish_connection;
 use handlers::health::health_check;
-use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes};
+use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes, jabatan_routes};
 use middleware::auth::jwt_auth_layer;
 
 #[tokio::main]
@@ -52,6 +52,10 @@ async fn main() {
             "/api/kantors", 
             create_kantor_routes()
                 .layer(from_fn_with_state(db.clone(), jwt_auth_layer))
+        )
+        .nest(
+            "/api/jabatans", 
+            jabatan_routes(db.clone())
         )
         .with_state(db);
 

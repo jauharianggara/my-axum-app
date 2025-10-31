@@ -6,10 +6,21 @@ info:
     
     ## Features
     - ✅ JWT Authentication (Register, Login, Protected Endpoints)
-    - ✅ CRUD Operations untuk Karyawan dan Kantor
+    - ✅ CRUD Operations untuk Karyawan, Kantor, dan Jabatan
+    - ✅ **Auto-Create User Account** - Otomatis membuat user saat create karyawan
     - ✅ Photo Upload Management dengan validasi keamanan
+    - ✅ User Tracking (created_by, updated_by)
+    - ✅ **Jabatan (Job Position) Management** - Mandatory field untuk karyawan
     - ✅ Database Integration dengan MySQL
     - ✅ Comprehensive Validation dan Error Handling
+    
+    ## Auto-Create User Feature
+    Ketika membuat karyawan baru, sistem otomatis:
+    - Generate username dari nama karyawan (lowercase, tanpa spasi)
+    - Generate email: {username}@karyawan.local
+    - Set default password: "12345678"
+    - Karyawan bisa login menggunakan credentials ini
+    - Jika username sudah ada, user yang existing akan di-reuse
     
     ## Authentication
     Sebagian besar endpoint memerlukan JWT token. Untuk mendapatkan token:
@@ -22,7 +33,7 @@ info:
     2. **Login**: `POST /api/auth/login` 
     3. **Access Protected Endpoints**: Include `Authorization: Bearer <token>` header
     
-  version: 4.0.0
+  version: 5.0.0
   contact:
     name: API Support
     email: support@example.com
@@ -45,6 +56,8 @@ tags:
     description: Karyawan management operations (Protected)
   - name: Kantor
     description: Kantor management operations (Protected)
+  - name: Jabatan
+    description: Jabatan (Job Position) management operations (Protected)
   - name: Files
     description: Static file serving
 
@@ -216,7 +229,18 @@ paths:
       tags:
         - Karyawan
       summary: Create new karyawan
-      description: Create a new karyawan record
+      description: |
+        Create a new karyawan record with automatic user account creation.
+        
+        **Auto-Create User Feature:**
+        - System automatically creates a user account for the karyawan
+        - Username: generated from nama (lowercase, spaces removed)
+          - Example: "Budi Santoso" → username: "budisantoso"
+        - Email: {username}@karyawan.local
+        - Default Password: "12345678"
+        - If username already exists, the existing user will be reused
+        
+        **Note:** Multiple karyawan can share the same user account if they have the same name.
       security:
         - BearerAuth: []
       requestBody:
@@ -284,7 +308,21 @@ paths:
       tags:
         - Karyawan
       summary: Create karyawan with photo
-      description: Create a new karyawan record with photo upload
+      description: |
+        Create a new karyawan record with photo upload and automatic user account creation.
+        
+        **Auto-Create User Feature:**
+        - System automatically creates a user account for the karyawan
+        - Username: generated from nama (lowercase, spaces removed)
+          - Example: "Budi Santoso" → username: "budisantoso"
+        - Email: {username}@karyawan.local
+        - Default Password: "12345678"
+        - If username already exists, the existing user will be reused
+        
+        **Photo Upload:**
+        - Accepted formats: JPEG, PNG, GIF
+        - Maximum size: 5MB
+        - Files stored in: uploads/karyawan/{karyawan_id}/
       security:
         - BearerAuth: []
       requestBody:
@@ -822,6 +860,227 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Jabatan Endpoints
+  /api/jabatans:
+    get:
+      tags:
+        - Jabatan
+      summary: Get all jabatan
+      description: Retrieve list of all jabatan (job positions)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of jabatan retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Jabatan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Jabatan
+      summary: Create new jabatan
+      description: Create a new jabatan (job position) record
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJabatanRequest'
+      responses:
+        '200':
+          description: Jabatan created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Jabatan'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/jabatans/{id}:
+    get:
+      tags:
+        - Jabatan
+      summary: Get jabatan by ID
+      description: Retrieve a specific jabatan by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Jabatan ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Jabatan retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Jabatan'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Jabatan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Jabatan
+      summary: Update jabatan
+      description: Update an existing jabatan record
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Jabatan ID
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateJabatanRequest'
+      responses:
+        '200':
+          description: Jabatan updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Jabatan'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Jabatan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Jabatan
+      summary: Delete jabatan
+      description: |
+        Delete a jabatan record
+        
+        **Note:** Cannot delete jabatan if it's being used by any karyawan (foreign key constraint)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Jabatan ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Jabatan deleted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          description: Invalid ID format or jabatan is in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "Failed to delete jabatan"
+                data: null
+                errors: ["Database error: foreign key constraint fails"]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Jabatan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # File Serving
   /uploads/karyawan/photos/{filename}:
     get:
@@ -1013,9 +1272,6 @@ components:
         nama:
           type: string
           example: "Budi Santoso"
-        posisi:
-          type: string
-          example: "Software Engineer"
         gaji:
           type: integer
           example: 8000000
@@ -1024,6 +1280,10 @@ components:
           type: integer
           example: 2
           description: Office ID (required)
+        jabatan_id:
+          type: integer
+          example: 1
+          description: Job position ID (required)
         foto_path:
           type: string
           nullable: true
@@ -1062,9 +1322,9 @@ components:
       required:
         - id
         - nama
-        - posisi
         - gaji
         - kantor_id
+        - jabatan_id
         - created_at
         - updated_at
 
@@ -1078,6 +1338,11 @@ components:
               nullable: true
               example: "Kantor Jakarta"
               description: Office name
+            jabatan_nama:
+              type: string
+              nullable: true
+              example: "Manager"
+              description: Job position name
 
     CreateKaryawanRequest:
       type: object
@@ -1088,12 +1353,6 @@ components:
           maxLength: 50
           example: "Budi Santoso"
           description: Employee name (2-50 characters)
-        posisi:
-          type: string
-          minLength: 2
-          maxLength: 30
-          example: "Software Engineer"
-          description: Job position (2-30 characters)
         gaji:
           type: string
           example: "8000000"
@@ -1102,11 +1361,15 @@ components:
           type: string
           example: "2"
           description: Office ID as string (must exist in database)
+        jabatan_id:
+          type: string
+          example: "1"
+          description: Jabatan ID as string (must exist in database)
       required:
         - nama
-        - posisi
         - gaji
         - kantor_id
+        - jabatan_id
 
     UpdateKaryawanRequest:
       type: object
@@ -1117,12 +1380,6 @@ components:
           maxLength: 50
           example: "Budi Santoso"
           description: Employee name (2-50 characters)
-        posisi:
-          type: string
-          minLength: 2
-          maxLength: 30
-          example: "Senior Software Engineer"
-          description: Job position (2-30 characters)
         gaji:
           type: string
           example: "9000000"
@@ -1131,11 +1388,15 @@ components:
           type: string
           example: "2"
           description: Office ID as string (must exist in database)
+        jabatan_id:
+          type: string
+          example: "1"
+          description: Jabatan ID as string (must exist in database)
       required:
         - nama
-        - posisi
         - gaji
         - kantor_id
+        - jabatan_id
 
     CreateKaryawanWithPhotoRequest:
       type: object
@@ -1288,6 +1549,70 @@ components:
         - alamat
         - longitude
         - latitude
+
+    # Jabatan Schemas
+    Jabatan:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nama_jabatan:
+          type: string
+          example: "Manager"
+          description: Job position name
+        deskripsi:
+          type: string
+          nullable: true
+          example: "Manajer departemen"
+          description: Job position description
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-11-01T02:59:51Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-11-01T02:59:51Z"
+      required:
+        - id
+        - nama_jabatan
+        - created_at
+        - updated_at
+
+    CreateJabatanRequest:
+      type: object
+      properties:
+        nama_jabatan:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Manager"
+          description: Job position name (2-100 characters)
+        deskripsi:
+          type: string
+          maxLength: 500
+          example: "Manajer departemen"
+          description: Job position description (max 500 characters, optional)
+      required:
+        - nama_jabatan
+
+    UpdateJabatanRequest:
+      type: object
+      properties:
+        nama_jabatan:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Senior Manager"
+          description: Job position name (2-100 characters)
+        deskripsi:
+          type: string
+          maxLength: 500
+          example: "Manajer senior departemen"
+          description: Job position description (max 500 characters, optional)
+      required:
+        - nama_jabatan
 
 security:
   - BearerAuth: []

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "karyawan-kantor-api-collection",
 		"name": "🚀 Karyawan & Kantor Management API",
-		"description": "Comprehensive API collection for Karyawan (Employee) and Kantor (Office) management system with JWT authentication.\n\n## 📖 Quick Start Guide\n\n### 1. Authentication Flow\n1. **Register** new user (optional if you have existing account)\n2. **Login** to get JWT token\n3. Use JWT token in Authorization header for all protected endpoints\n\n### 2. Environment Setup\n- Set `baseUrl` to `http://localhost:8080` for development\n- Token is automatically saved after login for subsequent requests\n\n### 3. Testing Flow\n1. Start with Health Check to verify server\n2. Register/Login to get authentication\n3. Create Kantor (Office) first\n4. Create Karyawan (Employee) with kantor_id\n5. Test CRUD operations\n\n## 🔐 Security Notes\n- All karyawan/kantor endpoints require JWT authentication\n- Token expires in 24 hours\n- Use strong passwords (minimum 6 characters)\n\n## 📁 File Upload\n- Photo uploads support JPEG, PNG, GIF\n- Maximum file size: 5MB\n- Files stored in uploads/karyawan/photos/",
+		"description": "Comprehensive API collection for Karyawan (Employee), Kantor (Office), and Jabatan (Job Position) management system with JWT authentication and auto-create user feature.\n\n## 📖 Quick Start Guide\n\n### 1. Authentication Flow\n1. **Register** new user (optional if you have existing account)\n2. **Login** to get JWT token\n3. Use JWT token in Authorization header for all protected endpoints\n\n### 2. Environment Setup\n- Set `baseUrl` to `http://localhost:8080` for development\n- Token is automatically saved after login for subsequent requests\n\n### 3. Testing Flow\n1. Start with Health Check to verify server\n2. Register/Login to get authentication\n3. Create Jabatan (Job Position) first\n4. Create Kantor (Office)\n5. Create Karyawan (Employee) with jabatan_id and kantor_id - user account will be auto-created\n6. Test auto-created user login with credentials\n7. Test CRUD operations\n\n## ✨ Auto-Create User Feature\n\nWhen creating a new karyawan, the system automatically:\n- Creates a user account for the employee\n- Generates username from employee name (lowercase, no spaces)\n  - Example: \"Budi Santoso\" → username: \"budisantoso\"\n- Sets email as: {username}@karyawan.local\n- Sets default password: \"12345678\"\n- Allows the employee to login immediately\n- Reuses existing user if same name already exists\n\n**Example Flow:**\n1. Create karyawan named \"Budi Santoso\"\n2. System creates user:\n   - Username: budisantoso\n   - Email: budisantoso@karyawan.local\n   - Password: 12345678\n3. Login with these credentials to access employee portal\n\n## 🔐 Security Notes\n- All karyawan/kantor/jabatan endpoints require JWT authentication\n- Token expires in 24 hours\n- Use strong passwords (minimum 6 characters)\n- Auto-created users should change password on first login (recommended)\n\n## 📁 File Upload\n- Photo uploads support JPEG, PNG, GIF\n- Maximum file size: 5MB\n- Files stored in uploads/karyawan/{karyawan_id}/",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -519,7 +519,292 @@
 			}
 		},
 		{
-			"name": "👥 Karyawan Management",
+			"name": "� Jabatan Management",
+			"item": [
+				{
+					"name": "Get All Jabatan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is array\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/jabatans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"jabatans"
+							]
+						},
+						"description": "Retrieve list of all job positions"
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Jabatan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Jabatan created successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"});",
+									"",
+									"// Save jabatan ID for other tests",
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('jabatanId', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Software Engineer\",\n    \"deskripsi\": \"Bertanggung jawab untuk pengembangan dan pemeliharaan aplikasi perangkat lunak\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/jabatans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"jabatans"
+							]
+						},
+						"description": "Create a new job position with name and description"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Jabatan by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Jabatan details returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('nama');",
+									"    pm.expect(jsonData.data).to.have.property('deskripsi');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/jabatans/{{jabatanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"jabatans",
+								"{{jabatanId}}"
+							]
+						},
+						"description": "Get specific job position details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Jabatan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Jabatan updated successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nama\": \"Senior Software Engineer\",\n    \"deskripsi\": \"Bertanggung jawab untuk pengembangan dan pemeliharaan aplikasi perangkat lunak tingkat lanjut\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/jabatans/{{jabatanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"jabatans",
+								"{{jabatanId}}"
+							]
+						},
+						"description": "Update existing job position information"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Jabatan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Jabatan deleted successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/jabatans/{{jabatanId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"jabatans",
+								"{{jabatanId}}"
+							]
+						},
+						"description": "Delete a job position (Note: Will fail if employees are assigned to this position)"
+					},
+					"response": []
+				}
+			],
+			"description": "Job Position (Jabatan) management endpoints for creating, reading, updating, and deleting job positions",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{jwtToken}}",
+						"type": "string"
+					}
+				]
+			}
+		},
+		{
+			"name": "�👥 Karyawan Management",
 			"item": [
 				{
 					"name": "Get All Karyawan",
@@ -666,7 +951,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"nama\": \"Budi Santoso\",\n    \"posisi\": \"Software Engineer\",\n    \"gaji\": \"8000000\",\n    \"kantor_id\": \"{{kantorId}}\"\n}"
+							"raw": "{\n    \"nama\": \"Budi Santoso\",\n    \"gaji\": \"8000000\",\n    \"kantor_id\": \"{{kantorId}}\",\n    \"jabatan_id\": \"{{jabatanId}}\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/karyawans",
@@ -678,7 +963,7 @@
 								"karyawans"
 							]
 						},
-						"description": "Create a new employee record. Requires valid kantor_id from existing office."
+						"description": "Create a new employee record with automatic user account creation.\n\n**Auto-Create User Feature:**\n- System automatically creates a user account for the karyawan\n- Username: generated from nama (lowercase, spaces removed)\n  - Example: \"Budi Santoso\" → username: \"budisantoso\"\n- Email: {username}@karyawan.local\n  - Example: budisantoso@karyawan.local\n- Default Password: \"12345678\"\n- Karyawan can login using these credentials\n- If username already exists, the existing user will be reused\n\n**Requirements:**\n- Valid kantor_id from existing office\n- Valid jabatan_id from existing job position\n- nama: 2-50 characters\n- gaji: 1,000,000 - 100,000,000 IDR"
 					},
 					"response": []
 				},
@@ -725,11 +1010,6 @@
 									"type": "text"
 								},
 								{
-									"key": "posisi",
-									"value": "UI/UX Designer",
-									"type": "text"
-								},
-								{
 									"key": "gaji",
 									"value": "7500000",
 									"type": "text"
@@ -737,6 +1017,11 @@
 								{
 									"key": "kantor_id",
 									"value": "{{kantorId}}",
+									"type": "text"
+								},
+								{
+									"key": "jabatan_id",
+									"value": "{{jabatanId}}",
 									"type": "text"
 								},
 								{
@@ -758,7 +1043,7 @@
 								"with-photo"
 							]
 						},
-						"description": "Create a new employee with photo upload. Select a photo file in the 'foto' field."
+						"description": "Create a new employee with photo upload and automatic user account creation.\n\n**Auto-Create User Feature:**\n- System automatically creates a user account for the karyawan\n- Username: generated from nama (lowercase, spaces removed)\n  - Example: \"Budi Santoso\" → username: \"budisantoso\"\n- Email: {username}@karyawan.local\n- Default Password: \"12345678\"\n- Karyawan can login using these credentials\n- If username already exists, the existing user will be reused\n\n**Photo Upload:**\n- Accepted formats: JPEG, PNG, GIF\n- Maximum size: 5MB\n- Select a photo file in the 'foto' field\n\n**Requirements:**\n- Valid kantor_id from existing office\n- Valid jabatan_id from existing job position\n- nama: 2-50 characters\n- gaji: 1,000,000 - 100,000,000 IDR"
 					},
 					"response": []
 				},
@@ -902,7 +1187,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"nama\": \"Budi Santoso Updated\",\n    \"posisi\": \"Senior Software Engineer\",\n    \"gaji\": \"9000000\",\n    \"kantor_id\": \"{{kantorId}}\"\n}"
+							"raw": "{\n    \"nama\": \"Budi Santoso Updated\",\n    \"gaji\": \"9000000\",\n    \"kantor_id\": \"{{kantorId}}\",\n    \"jabatan_id\": \"{{jabatanId}}\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/karyawans/{{karyawanId}}",
@@ -1323,7 +1608,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"nama\": \"Test Employee\",\n    \"posisi\": \"Test Position\",\n    \"gaji\": \"5000000\",\n    \"kantor_id\": \"{{testKantorId}}\"\n}"
+									"raw": "{\n    \"nama\": \"Test Employee\",\n    \"gaji\": \"5000000\",\n    \"kantor_id\": \"{{testKantorId}}\",\n    \"jabatan_id\": \"{{jabatanId}}\"\n}"
 								},
 								"url": {
 									"raw": "{{baseUrl}}/api/karyawans",
@@ -1513,6 +1798,12 @@
 			"value": "",
 			"type": "string",
 			"description": "Employee ID for testing (automatically set after creating karyawan)"
+		},
+		{
+			"key": "jabatanId",
+			"value": "",
+			"type": "string",
+			"description": "Job Position ID for testing (automatically set after creating jabatan)"
 		},
 		{
 			"key": "testUsername",

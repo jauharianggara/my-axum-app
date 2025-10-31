@@ -7,7 +7,7 @@ use crate::models::{
     user::{Model as User, Entity as UserEntity, ActiveModel as UserActiveModel},
     ApiResponse,
 };
-use crate::validators::karyawan::{handle_validation_errors, validate_id, validate_kantor_id_exists};
+use crate::validators::karyawan::{handle_validation_errors, validate_id, validate_kantor_id_exists, validate_jabatan_id_exists};
 use crate::services::file_upload::{FileUploadService, UploadedFile};
 use crate::services::auth::PasswordService;
 use axum::{
@@ -26,10 +26,11 @@ use validator::Validate;
 pub struct KaryawanWithKantor {
     pub id: i32,
     pub nama: String,
-    pub posisi: String,
     pub gaji: i32,
     pub kantor_id: i32,
     pub kantor_nama: Option<String>,
+    pub jabatan_id: i32,
+    pub jabatan_nama: Option<String>,
     pub foto_path: Option<String>,
     pub foto_original_name: Option<String>,
     pub foto_size: Option<i64>,
@@ -55,10 +56,11 @@ pub async fn get_all_karyawan_with_kantor(
                         .map(|(karyawan, kantor)| KaryawanWithKantor {
                             id: karyawan.id,
                             nama: karyawan.nama,
-                            posisi: karyawan.posisi,
                             gaji: karyawan.gaji,
                             kantor_id: karyawan.kantor_id,
                             kantor_nama: kantor.map(|k| k.nama),
+                            jabatan_id: karyawan.jabatan_id,
+                            jabatan_nama: None, // TODO: Load jabatan with loader
                             foto_path: karyawan.foto_path,
                             foto_original_name: karyawan.foto_original_name,
                             foto_size: karyawan.foto_size,
@@ -130,10 +132,11 @@ pub async fn get_karyawan_with_kantor_by_id(
             let karyawan_with_kantor = KaryawanWithKantor {
                 id: karyawan.id,
                 nama: karyawan.nama,
-                posisi: karyawan.posisi,
                 gaji: karyawan.gaji,
                 kantor_id: karyawan.kantor_id,
                 kantor_nama,
+                jabatan_id: karyawan.jabatan_id,
+                jabatan_nama: None, // TODO: Load jabatan
                 foto_path: karyawan.foto_path,
                 foto_original_name: karyawan.foto_original_name,
                 foto_size: karyawan.foto_size,
@@ -229,6 +232,27 @@ pub async fn create_karyawan(
         ));
     }
 
+    let jabatan_id = match payload.jabatan_id.parse::<i32>() {
+        Ok(jabatan_id) => jabatan_id,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid jabatan_id format".to_string(),
+                vec![
+                    "jabatan_id wajib diisi dan harus berupa angka positif yang valid"
+                        .to_string(),
+                ],
+            ));
+        }
+    };
+
+    // Validasi apakah jabatan_id ada di database
+    if let Err(error_msg) = validate_jabatan_id_exists(jabatan_id, &db).await {
+        return Json(ApiResponse::error(
+            "Invalid jabatan_id".to_string(),
+            vec![error_msg],
+        ));
+    }
+
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,
         Err(_) => {
@@ -301,9 +325,9 @@ pub async fn create_karyawan(
 
     let new_karyawan = KaryawanActiveModel {
         nama: Set(payload.nama),
-        posisi: Set(payload.posisi),
         gaji: Set(gaji),
         kantor_id: Set(kantor_id),
+        jabatan_id: Set(jabatan_id),
         user_id: Set(user_id),
         created_by: Set(Some(user.id)),
         updated_by: Set(Some(user.id)),
@@ -372,6 +396,27 @@ pub async fn update_karyawan(
         ));
     }
 
+    let jabatan_id = match payload.jabatan_id.parse::<i32>() {
+        Ok(jabatan_id) => jabatan_id,
+        Err(_) => {
+            return Json(ApiResponse::error(
+                "Invalid jabatan_id format".to_string(),
+                vec![
+                    "jabatan_id wajib diisi dan harus berupa angka positif yang valid"
+                        .to_string(),
+                ],
+            ));
+        }
+    };
+
+    // Validasi apakah jabatan_id ada di database
+    if let Err(error_msg) = validate_jabatan_id_exists(jabatan_id, &db).await {
+        return Json(ApiResponse::error(
+            "Invalid jabatan_id".to_string(),
+            vec![error_msg],
+        ));
+    }
+
     let gaji = match payload.gaji.parse::<i32>() {
         Ok(gaji) => gaji,
         Err(_) => {
@@ -401,9 +446,9 @@ pub async fn update_karyawan(
 
     let mut updated_karyawan: KaryawanActiveModel = existing_karyawan.into();
     updated_karyawan.nama = Set(payload.nama);
-    updated_karyawan.posisi = Set(payload.posisi);
     updated_karyawan.gaji = Set(gaji);
     updated_karyawan.kantor_id = Set(kantor_id);
+    updated_karyawan.jabatan_id = Set(jabatan_id);
     updated_karyawan.updated_by = Set(Some(user.id));
 
     match updated_karyawan.update(&db).await {
@@ -480,25 +525,25 @@ pub async fn create_karyawan_with_photo(
         let name = field.name().unwrap_or("").to_string();
 
         match name.as_str() {
-            "nama" | "posisi" | "gaji" | "kantor_id" => {
+            "nama" | "gaji" | "kantor_id" | "jabatan_id" => {
                 let value = field.text().await.unwrap_or_default();
                 
                 // Build the karyawan data incrementally
                 if karyawan_data.is_none() {
                     karyawan_data = Some(CreateKaryawanRequest {
                         nama: String::new(),
-                        posisi: String::new(),
                         gaji: String::new(),
                         kantor_id: String::new(),
+                        jabatan_id: String::new(),
                     });
                 }
 
                 if let Some(ref mut data) = karyawan_data {
                     match name.as_str() {
                         "nama" => data.nama = value,
-                        "posisi" => data.posisi = value,
                         "gaji" => data.gaji = value,
                         "kantor_id" => data.kantor_id = value,
+                        "jabatan_id" => data.jabatan_id = value,
                         _ => {}
                     }
                 }
@@ -523,7 +568,7 @@ pub async fn create_karyawan_with_photo(
         None => {
             return Json(ApiResponse::error(
                 "Missing karyawan data".to_string(),
-                vec!["Nama, posisi, gaji, dan kantor_id diperlukan".to_string()],
+                vec!["Nama, gaji, kantor_id, dan jabatan_id diperlukan".to_string()],
             ));
         }
     };
@@ -568,6 +613,37 @@ pub async fn create_karyawan_with_photo(
         
         return Json(ApiResponse::error(
             "Invalid kantor_id".to_string(),
+            vec![error_msg],
+        ));
+    }
+
+    let jabatan_id = match payload.jabatan_id.parse::<i32>() {
+        Ok(jabatan_id) => jabatan_id,
+        Err(_) => {
+            // Clean up uploaded file if parsing fails
+            if let Some(file) = uploaded_file {
+                let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+            }
+            
+            return Json(ApiResponse::error(
+                "Invalid jabatan_id format".to_string(),
+                vec![
+                    "jabatan_id wajib diisi dan harus berupa angka positif yang valid"
+                        .to_string(),
+                ],
+            ));
+        }
+    };
+
+    // Validasi apakah jabatan_id ada di database
+    if let Err(error_msg) = validate_jabatan_id_exists(jabatan_id, &db).await {
+        // Clean up uploaded file if validation fails
+        if let Some(file) = uploaded_file {
+            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+        }
+        
+        return Json(ApiResponse::error(
+            "Invalid jabatan_id".to_string(),
             vec![error_msg],
         ));
     }
@@ -664,9 +740,9 @@ pub async fn create_karyawan_with_photo(
 
     let new_karyawan = KaryawanActiveModel {
         nama: Set(payload.nama),
-        posisi: Set(payload.posisi),
         gaji: Set(gaji),
         kantor_id: Set(kantor_id),
+        jabatan_id: Set(jabatan_id),
         user_id: Set(user_id),
         created_by: Set(Some(user.id)),
         updated_by: Set(Some(user.id)),

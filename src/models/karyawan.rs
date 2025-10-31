@@ -8,9 +8,9 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub nama: String,
-    pub posisi: String,
     pub gaji: i32,
     pub kantor_id: i32,
+    pub jabatan_id: i32,
     pub foto_path: Option<String>,
     pub foto_original_name: Option<String>,
     pub foto_size: Option<i64>,
@@ -30,6 +30,12 @@ pub enum Relation {
         to = "super::kantor::Column::Id"
     )]
     Kantor,
+    #[sea_orm(
+        belongs_to = "super::jabatan::Entity",
+        from = "Column::JabatanId",
+        to = "super::jabatan::Column::Id"
+    )]
+    Jabatan,
     #[sea_orm(
         belongs_to = "super::user::Entity",
         from = "Column::UserId",
@@ -58,6 +64,12 @@ impl Related<super::kantor::Entity> for Entity {
     }
 }
 
+impl Related<super::jabatan::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Jabatan.def()
+    }
+}
+
 // Type alias for backward compatibility
 //pub type Karyawan = Model;
 
@@ -66,14 +78,14 @@ pub struct CreateKaryawanRequest {
     #[validate(length(min = 2, max = 50, message = "Nama harus antara 2-50 karakter"))]
     pub nama: String,
 
-    #[validate(length(min = 2, max = 30, message = "Posisi harus antara 2-30 karakter"))]
-    pub posisi: String,
-
     #[validate(custom(function = "crate::validators::karyawan::validate_gaji"))]
     pub gaji: String,
 
     #[validate(custom(function = "crate::validators::karyawan::validate_kantor_id"))]
     pub kantor_id: String,
+
+    #[validate(custom(function = "crate::validators::karyawan::validate_jabatan_id"))]
+    pub jabatan_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
@@ -81,12 +93,12 @@ pub struct UpdateKaryawanRequest {
     #[validate(length(min = 2, max = 50, message = "Nama harus antara 2-50 karakter"))]
     pub nama: String,
 
-    #[validate(length(min = 2, max = 30, message = "Posisi harus antara 2-30 karakter"))]
-    pub posisi: String,
-
     #[validate(custom(function = "crate::validators::karyawan::validate_gaji"))]
     pub gaji: String,
 
     #[validate(custom(function = "crate::validators::karyawan::validate_kantor_id"))]
     pub kantor_id: String,
+
+    #[validate(custom(function = "crate::validators::karyawan::validate_jabatan_id"))]
+    pub jabatan_id: String,
 }

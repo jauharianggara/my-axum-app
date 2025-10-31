@@ -28,12 +28,7 @@ Jika username sudah ada di database:
 - Sistem akan menggunakan user yang sudah ada
 - Tidak membuat user baru
 - Karyawan akan di-link ke user yang existing
-
-### Manual User ID
-
-Jika Anda menyediakan `user_id` saat create karyawan:
-- Sistem **TIDAK** akan auto-create user
-- Akan menggunakan user_id yang diberikan
+- Multiple karyawan bisa share user yang sama
 
 ## API Endpoints
 
@@ -41,7 +36,7 @@ Jika Anda menyediakan `user_id` saat create karyawan:
 
 **Endpoint**: `POST /api/karyawans`
 
-**Request Body**:
+**Request Body** (user_id **TIDAK** perlu di-provide):
 ```json
 {
   "nama": "Budi Santoso",

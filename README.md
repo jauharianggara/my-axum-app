@@ -1,18 +1,19 @@
 # Karyawan & Kantor Management API
 
-REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan Axum framework.
+REST API untuk manajemen data karyawan, kantor, dan jabatan yang dibangun dengan Rust dan Axum framework.
 
 ## ✨ Fitur Utama
 
 - **JWT Authentication**: Sistem autentikasi lengkap dengan JWT token dan password hashing
 - **User Management**: Register, login, dan protected endpoints dengan bcrypt security
 - **User Tracking**: Setiap karyawan mencatat user yang membuat dan mengupdate (created_by/updated_by)
-- **CRUD Operations**: Create, Read, Update, Delete untuk karyawan dan kantor
+- **Jabatan Management**: Sistem manajemen jabatan (job position) untuk karyawan
+- **CRUD Operations**: Create, Read, Update, Delete untuk karyawan, kantor, dan jabatan
 - **Photo Upload Management**: Upload, update, dan delete foto karyawan dengan validasi keamanan
 - **Database Integration**: MySQL database dengan Sea-ORM dan automated migrations
 - **Comprehensive Validation**: Validasi data yang ketat dengan database existence check
-- **Kantor Relationship**: Sistem kantor wajib untuk setiap karyawan (no freelancer)
-- **Foreign Key Constraints**: Relasi database antara karyawan-kantor dan karyawan-user
+- **Required Relationships**: Setiap karyawan wajib memiliki kantor dan jabatan (no freelancer)
+- **Foreign Key Constraints**: Relasi database antara karyawan-kantor, karyawan-jabatan, dan karyawan-user
 - **JSON Responses**: Response API yang konsisten dalam format JSON
 - **Error Handling**: Penanganan error yang informatif dan user-friendly
 - **Clean Architecture**: Struktur kode yang terorganisir dengan separation of concerns
@@ -80,17 +81,20 @@ src/
 │   ├── mod.rs
 │   ├── auth.rs            # Authentication handlers (register, login, me)
 │   ├── health.rs          # Health check handler
+│   ├── jabatan.rs         # CRUD handlers untuk jabatan (job positions)
 │   ├── karyawan.rs        # CRUD handlers untuk karyawan + foto upload
 │   └── kantor.rs          # CRUD handlers untuk kantor
 ├── models/                 # Data structures (Sea-ORM entities)
 │   ├── mod.rs
 │   ├── common.rs          # Shared response models (ApiResponse)
+│   ├── jabatan.rs         # Jabatan entity & request DTOs
 │   ├── karyawan.rs        # Karyawan entity & request DTOs
 │   ├── kantor.rs          # Kantor entity & request DTOs
 │   └── user.rs            # User entity untuk authentication system
 ├── routes/                 # Route definitions
 │   ├── mod.rs
 │   ├── auth.rs            # Authentication routes (register, login, me)
+│   ├── jabatan.rs         # Jabatan routes
 │   ├── karyawan.rs        # Karyawan routes
 │   └── kantor.rs          # Kantor routes
 ├── services/               # Business logic services
@@ -99,13 +103,26 @@ src/
 │   └── file_upload.rs     # File upload service dengan validasi
 └── validators/             # Custom validation logic
     ├── mod.rs
+    ├── jabatan.rs         # Jabatan validation functions
     ├── karyawan.rs        # Karyawan validation + database checks
     └── kantor.rs          # Kantor validation functions
 migration/                  # Database migrations
 ├── src/
 │   ├── lib.rs             # Migration manager
 │   ├── main.rs            # Migration CLI
-│   └── m2024*.rs          # Individual migration files
+│   ├── m20241028_000001_create_karyawan_table.rs
+│   ├── m20241028_000002_create_kantor_table.rs
+│   ├── m20241029_000003_add_foto_column_to_karyawan.rs
+│   ├── m20251028_090641_add_kantor_id_to_karyawan.rs
+│   ├── m20251029_101303_make_kantor_id_required.rs
+│   ├── m20251029_120000_create_users_table.rs
+│   ├── m20251029_140819_change_timestamp_to_datetime.rs
+│   ├── m20251031_095022_add_user_tracking_to_karyawan.rs
+│   ├── m20251031_100041_add_user_tracking_to_kantor.rs
+│   ├── m20251031_102506_add_user_id_to_karyawan.rs
+│   ├── m20251031_110440_remove_user_id_unique_constraint.rs
+│   ├── m20251031_194811_create_jabatan_table.rs
+│   └── m20251031_194846_add_jabatan_id_to_karyawan.rs
 └── Cargo.toml             # Migration dependencies
 tests/                      # Organized testing framework
 ├── api/                   # API functionality tests
@@ -271,6 +288,15 @@ uploads/                    # File upload directory
 | PUT | `/api/kantors/:id` | Update kantor |
 | DELETE | `/api/kantors/:id` | Hapus kantor |
 
+#### Jabatan Management
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| GET | `/api/jabatans` | Dapatkan semua jabatan |
+| GET | `/api/jabatans/:id` | Dapatkan jabatan berdasarkan ID |
+| POST | `/api/jabatans` | Buat jabatan baru |
+| PUT | `/api/jabatans/:id` | Update jabatan |
+| DELETE | `/api/jabatans/:id` | Hapus jabatan |
+
 ## 📝 Database Schema & API Format
 
 ### Database Tables
@@ -296,9 +322,9 @@ CREATE TABLE users (
 CREATE TABLE karyawan (
   id INT PRIMARY KEY AUTO_INCREMENT,
   nama VARCHAR(50) NOT NULL,
-  posisi VARCHAR(30) NOT NULL,
   gaji INT NOT NULL,
   kantor_id INT NOT NULL,                    -- WAJIB DIISI (no freelancer)
+  jabatan_id INT NOT NULL,                   -- WAJIB DIISI (job position required)
   foto_path VARCHAR(255) NULL,               -- Path ke file foto
   foto_original_name VARCHAR(255) NULL,      -- Nama file asli
   foto_size BIGINT NULL,                     -- Ukuran file dalam bytes
@@ -306,8 +332,11 @@ CREATE TABLE karyawan (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY `idx_karyawan_kantor_id` (`kantor_id`),
+  KEY `idx_karyawan_jabatan_id` (`jabatan_id`),
   CONSTRAINT `fk_karyawan_kantor_id` FOREIGN KEY (`kantor_id`) 
-    REFERENCES `kantor` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+    REFERENCES `kantor` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_karyawan_jabatan_id` FOREIGN KEY (`jabatan_id`) 
+    REFERENCES `jabatan` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 ```
 
@@ -319,6 +348,17 @@ CREATE TABLE kantor (
   alamat VARCHAR(200) NOT NULL,
   longitude DECIMAL(10,7) NOT NULL,
   latitude DECIMAL(10,7) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+#### Jabatan Table  
+```sql
+CREATE TABLE jabatan (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  nama VARCHAR(100) NOT NULL,
+  deskripsi TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -358,9 +398,9 @@ CREATE TABLE kantor (
 {
   "id": 1,
   "nama": "Budi Santoso",
-  "posisi": "Software Engineer", 
   "gaji": 8000000,
   "kantor_id": 2,
+  "jabatan_id": 1,
   "foto_path": "uploads/karyawan/photos/1_photo_1699234567.jpg",
   "foto_original_name": "profile.jpg",
   "foto_size": 245760,
@@ -375,10 +415,11 @@ CREATE TABLE kantor (
 {
   "id": 1,
   "nama": "Budi Santoso",
-  "posisi": "Software Engineer", 
   "gaji": 8000000,
   "kantor_id": 2,
+  "jabatan_id": 1,
   "kantor_nama": "Kantor Jakarta",
+  "jabatan_nama": "Software Engineer",
   "foto_path": "uploads/karyawan/photos/1_photo_1699234567.jpg",
   "foto_original_name": "profile.jpg",
   "foto_size": 245760,
@@ -398,6 +439,17 @@ CREATE TABLE kantor (
   "latitude": "-6.1751100",
   "created_at": "2024-10-28T10:30:00Z",
   "updated_at": "2024-10-28T10:30:00Z"
+}
+```
+
+#### Jabatan Model
+```json
+{
+  "id": 1,
+  "nama": "Software Engineer",
+  "deskripsi": "Bertanggung jawab untuk pengembangan dan pemeliharaan aplikasi perangkat lunak",
+  "created_at": "2024-10-31T10:30:00Z",
+  "updated_at": "2024-10-31T10:30:00Z"
 }
 ```
 
@@ -425,9 +477,9 @@ CREATE TABLE kantor (
 ```json
 {
   "nama": "Nama Karyawan",
-  "posisi": "Posisi Jabatan",
   "gaji": "8000000",
-  "kantor_id": "2"
+  "kantor_id": "2",
+  "jabatan_id": "1"
 }
 ```
 
@@ -437,9 +489,9 @@ Content-Type: multipart/form-data
 
 Fields:
 - nama: "Nama Karyawan"
-- posisi: "Posisi Jabatan" 
 - gaji: "8000000"
 - kantor_id: "2"
+- jabatan_id: "1"
 - foto: [binary file data] (JPEG/PNG/GIF, max 5MB)
 ```
 
@@ -458,6 +510,14 @@ Fields:
   "alamat": "Alamat Lengkap Kantor",
   "longitude": 106.827153,
   "latitude": -6.175110
+}
+```
+
+#### Create Jabatan Request
+```json
+{
+  "nama": "Software Engineer",
+  "deskripsi": "Bertanggung jawab untuk pengembangan dan pemeliharaan aplikasi perangkat lunak"
 }
 ```
 
@@ -492,7 +552,6 @@ Fields:
 
 ### Karyawan Validation:
 - **Nama**: Required, minimal 2 karakter, maksimal 50 karakter
-- **Posisi**: Required, minimal 2 karakter, maksimal 30 karakter
 - **Gaji**: 
   - Required
   - Harus berupa string yang bisa dikonversi ke angka
@@ -502,6 +561,11 @@ Fields:
   - **WAJIB DIISI** (tidak boleh kosong atau 0)
   - Harus berupa angka positif yang valid
   - **Harus mereferensi kantor yang ada di database**
+  - Database existence validation
+- **Jabatan ID**: 
+  - **WAJIB DIISI** (tidak boleh kosong atau 0)
+  - Harus berupa angka positif yang valid
+  - **Harus mereferensi jabatan yang ada di database**
   - Database existence validation
 - **Foto** (opsional):
   - Format: JPEG, PNG, GIF
@@ -514,6 +578,11 @@ Fields:
 - **Alamat**: Required, minimal 5 karakter, maksimal 200 karakter
 - **Longitude**: Required, range -180 hingga 180
 - **Latitude**: Required, range -90 hingga 90
+- **ID**: Harus berupa angka positif yang valid
+
+### Jabatan Validation:
+- **Nama**: Required, minimal 2 karakter, maksimal 100 karakter
+- **Deskripsi**: Optional, maksimal 1000 karakter (TEXT field)
 - **ID**: Harus berupa angka positif yang valid
 
 ### File Upload Validation:
@@ -733,8 +802,8 @@ Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/with-kantor -UseBasic
 # Get specific karyawan
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/2 -UseBasicParsing
 
-# Create new karyawan (kantor_id WAJIB)
-$body = '{"nama":"John Doe","posisi":"Developer","gaji":"8000000","kantor_id":"2"}'
+# Create new karyawan (kantor_id and jabatan_id WAJIB)
+$body = '{"nama":"John Doe","gaji":"8000000","kantor_id":"2","jabatan_id":"1"}'
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
 
 # Upload photo to existing karyawan
@@ -778,10 +847,10 @@ curl http://localhost:8080/api/karyawans
 curl http://localhost:8080/api/karyawans/2
 curl http://localhost:8080/api/karyawans/2/with-kantor
 
-# Create karyawan (kantor_id WAJIB)
+# Create karyawan (kantor_id and jabatan_id WAJIB)
 curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
-  -d '{"nama":"Jane Doe","posisi":"Manager","gaji":"12000000","kantor_id":"2"}'
+  -d '{"nama":"Jane Doe","gaji":"12000000","kantor_id":"2","jabatan_id":"1"}'
 
 # Upload photo
 curl -X POST http://localhost:8080/api/karyawans/2/photo \
@@ -790,9 +859,9 @@ curl -X POST http://localhost:8080/api/karyawans/2/photo \
 # Create karyawan with photo
 curl -X POST http://localhost:8080/api/karyawans/with-photo \
   -F "nama=Test User" \
-  -F "posisi=Developer" \
   -F "gaji=8000000" \
   -F "kantor_id=2" \
+  -F "jabatan_id=1" \
   -F "foto=@path/to/photo.jpg"
 
 # Test kantor endpoints
@@ -1079,8 +1148,8 @@ MIT License - lihat file LICENSE untuk detail lengkap.
 ---
 
 **Author**: [jauharianggara]  
-**Version**: 4.0.0  
-**Last Updated**: October 29, 2025
+**Version**: 5.0.0  
+**Last Updated**: November 1, 2025
 
 ## 📁 Documentation & Project Organization
 

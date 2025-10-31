@@ -48,6 +48,23 @@ pub fn validate_kantor_id(kantor_id: &str) -> Result<(), ValidationError> {
     }
 }
 
+// Function untuk validasi jabatan_id (wajib diisi)
+pub fn validate_jabatan_id(jabatan_id: &str) -> Result<(), ValidationError> {    
+    match jabatan_id.parse::<i32>() {
+        Ok(id) if id > 0 => Ok(()), // Harus positif, tidak boleh 0
+        Ok(_) => {
+            let mut error = ValidationError::new("invalid_jabatan_id");
+            error.message = Some("jabatan_id wajib diisi dan harus berupa angka positif yang valid".into());
+            Err(error)
+        }
+        Err(_) => {
+            let mut error = ValidationError::new("invalid_jabatan_id");
+            error.message = Some("jabatan_id wajib diisi dan harus berupa angka positif yang valid".into());
+            Err(error)
+        }
+    }
+}
+
 // Function async untuk validasi kantor_id dengan database check
 pub async fn validate_kantor_id_exists(
     kantor_id: i32, 
@@ -66,6 +83,27 @@ pub async fn validate_kantor_id_exists(
         Ok(Some(_)) => Ok(()), // Kantor ditemukan
         Ok(None) => Err(format!("Kantor dengan ID {} tidak ditemukan di database", kantor_id)),
         Err(err) => Err(format!("Error saat mengecek kantor di database: {}", err)),
+    }
+}
+
+// Function async untuk validasi jabatan_id dengan database check
+pub async fn validate_jabatan_id_exists(
+    jabatan_id: i32, 
+    db: &sea_orm::DatabaseConnection
+) -> Result<(), String> {
+    use crate::models::jabatan::Entity as JabatanEntity;
+    use sea_orm::EntityTrait;
+    
+    // jabatan_id harus positif dan wajib diisi
+    if jabatan_id <= 0 {
+        return Err("jabatan_id wajib diisi dan harus berupa angka positif".to_string());
+    }
+    
+    // Check apakah jabatan ada di database
+    match JabatanEntity::find_by_id(jabatan_id).one(db).await {
+        Ok(Some(_)) => Ok(()), // Jabatan ditemukan
+        Ok(None) => Err(format!("Jabatan dengan ID {} tidak ditemukan di database", jabatan_id)),
+        Err(err) => Err(format!("Error saat mengecek jabatan di database: {}", err)),
     }
 }
 

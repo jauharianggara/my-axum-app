@@ -54,6 +54,19 @@ def get_valid_kantor_id():
     except:
         return None
 
+def get_valid_jabatan_id():
+    """Get a valid jabatan ID for testing"""
+    try:
+        response = requests.get(f"{API_BASE}/jabatans", timeout=5)
+        if response.status_code != 200:
+            return None
+        
+        data = response.json()
+        jabatans = data.get("data", [])
+        return jabatans[0]["id"] if jabatans else None
+    except:
+        return None
+
 def create_test_image(size=(100, 100), format_type='JPEG', color='blue'):
     """Create test image"""
     img = Image.new('RGB', size, color=color)
@@ -172,16 +185,19 @@ def validate_api_response(response, expected_status=200, should_succeed=True):
     except json.JSONDecodeError:
         return False
 
-def create_test_karyawan_data(nama="Test User", kantor_id=None):
+def create_test_karyawan_data(nama="Test User", kantor_id=None, jabatan_id=None):
     """Create test karyawan data"""
     if kantor_id is None:
         kantor_id = get_valid_kantor_id()
     
+    if jabatan_id is None:
+        jabatan_id = get_valid_jabatan_id()
+    
     return {
         "nama": nama,
-        "posisi": "Software Tester",
         "gaji": "5000000",
-        "kantor_id": str(kantor_id)
+        "kantor_id": str(kantor_id),
+        "jabatan_id": str(jabatan_id)
     }
 
 def create_test_kantor_data(nama="Test Kantor"):
