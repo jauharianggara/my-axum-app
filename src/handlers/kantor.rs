@@ -1,10 +1,11 @@
-use crate::models::{ApiResponse, kantor::{Entity as KantorEntity, Model as Kantor, ActiveModel as KantorActiveModel, CreateKantorRequest, UpdateKantorRequest}};
+use crate::models::{ApiResponse, kantor::{Entity as KantorEntity, Model as Kantor, ActiveModel as KantorActiveModel, CreateKantorRequest, UpdateKantorRequest}, user::Model as User};
 use crate::validators::kantor::{
     handle_validation_errors, validate_id, validate_latitude, validate_longitude,
 };
 use axum::{
     extract::{Json as ExtractJson, Path, State},
     response::Json,
+    Extension,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, ModelTrait};
 use validator::Validate;
@@ -66,6 +67,7 @@ pub async fn get_kantor_by_id(
 }
 
 pub async fn create_kantor(
+    Extension(user): Extension<User>,
     State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<CreateKantorRequest>,
 ) -> Json<ApiResponse<Kantor>> {
@@ -127,6 +129,8 @@ pub async fn create_kantor(
         alamat: Set(payload.alamat),
         longitude: Set(longitude),
         latitude: Set(latitude),
+        created_by: Set(Some(user.id)),
+        updated_by: Set(Some(user.id)),
         ..Default::default()
     };
 
@@ -147,6 +151,7 @@ pub async fn create_kantor(
 }
 
 pub async fn update_kantor(
+    Extension(user): Extension<User>,
     Path(id): Path<String>,
     State(db): State<DatabaseConnection>,
     ExtractJson(payload): ExtractJson<UpdateKantorRequest>,
@@ -237,6 +242,7 @@ pub async fn update_kantor(
     updated_kantor.alamat = Set(payload.alamat);
     updated_kantor.longitude = Set(longitude);
     updated_kantor.latitude = Set(latitude);
+    updated_kantor.updated_by = Set(Some(user.id));
 
     match updated_kantor.update(&db).await {
         Ok(kantor) => {

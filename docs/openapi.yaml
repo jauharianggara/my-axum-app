@@ -1041,6 +1041,16 @@ components:
           type: string
           nullable: true
           example: "image/jpeg"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+          description: User ID who created this record
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+          description: User ID who last updated this record
         created_at:
           type: string
           format: date-time

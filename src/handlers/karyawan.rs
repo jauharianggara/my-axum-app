@@ -4,17 +4,20 @@ use crate::models::{
         ActiveModel as KaryawanActiveModel, CreateKaryawanRequest, Entity as KaryawanEntity,
         Model as Karyawan, UpdateKaryawanRequest,
     },
+    user::{Model as User, Entity as UserEntity, ActiveModel as UserActiveModel},
     ApiResponse,
 };
 use crate::validators::karyawan::{handle_validation_errors, validate_id, validate_kantor_id_exists};
 use crate::services::file_upload::{FileUploadService, UploadedFile};
+use crate::services::auth::PasswordService;
 use axum::{
     extract::{State, Json as ExtractJson, Path, Multipart},
+    Extension,
     response::Json,
 };
 use sea_orm::{
     prelude::DateTimeWithTimeZone, ActiveModelTrait, DatabaseConnection, EntityTrait, LoaderTrait,
-    ModelTrait, Set,
+    ModelTrait, Set, QueryFilter, ColumnTrait,
 };
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -31,6 +34,9 @@ pub struct KaryawanWithKantor {
     pub foto_original_name: Option<String>,
     pub foto_size: Option<i64>,
     pub foto_mime_type: Option<String>,
+    pub user_id: Option<i32>,
+    pub created_by: Option<i32>,
+    pub updated_by: Option<i32>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -57,6 +63,9 @@ pub async fn get_all_karyawan_with_kantor(
                             foto_original_name: karyawan.foto_original_name,
                             foto_size: karyawan.foto_size,
                             foto_mime_type: karyawan.foto_mime_type,
+                            user_id: karyawan.user_id,
+                            created_by: karyawan.created_by,
+                            updated_by: karyawan.updated_by,
                             created_at: karyawan.created_at,
                             updated_at: karyawan.updated_at,
                         })
@@ -129,6 +138,9 @@ pub async fn get_karyawan_with_kantor_by_id(
                 foto_original_name: karyawan.foto_original_name,
                 foto_size: karyawan.foto_size,
                 foto_mime_type: karyawan.foto_mime_type,
+                user_id: karyawan.user_id,
+                created_by: karyawan.created_by,
+                updated_by: karyawan.updated_by,
                 created_at: karyawan.created_at,
                 updated_at: karyawan.updated_at,
             };
@@ -185,6 +197,7 @@ pub async fn get_karyawan_by_id(
 
 pub async fn create_karyawan(
     State(db): State<DatabaseConnection>,
+    Extension(user): Extension<User>,
     ExtractJson(payload): ExtractJson<CreateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validate the payload
@@ -226,11 +239,90 @@ pub async fn create_karyawan(
         }
     };
 
+    // Parse user_id if provided
+    let mut user_id = match payload.user_id {
+        Some(ref uid) => match uid.parse::<i32>() {
+            Ok(id) => Some(id),
+            Err(_) => {
+                return Json(ApiResponse::error(
+                    "Invalid user_id format".to_string(),
+                    vec!["user_id harus berupa angka yang valid".to_string()],
+                ));
+            }
+        },
+        None => None,
+    };
+
+    // Auto-create user if user_id is not provided
+    if user_id.is_none() {
+        // Generate username from nama (lowercase, remove spaces)
+        let username = payload.nama.to_lowercase().replace(" ", "");
+        
+        // Generate email from username
+        let email = format!("{}@karyawan.local", username);
+        
+        // Check if username already exists
+        let existing_user = UserEntity::find()
+            .filter(crate::models::user::Column::Username.eq(&username))
+            .one(&db)
+            .await;
+        
+        match existing_user {
+            Ok(None) => {
+                // User doesn't exist, create new user
+                let default_password = "12345678";
+                let password_hash = match PasswordService::hash_password(default_password) {
+                    Ok(hash) => hash,
+                    Err(e) => {
+                        return Json(ApiResponse::error(
+                            "Failed to hash password".to_string(),
+                            vec![format!("Error: {}", e)],
+                        ));
+                    }
+                };
+                
+                let new_user = UserActiveModel {
+                    username: Set(username.clone()),
+                    email: Set(email),
+                    password_hash: Set(password_hash),
+                    full_name: Set(Some(payload.nama.clone())),
+                    is_active: Set(true),
+                    ..Default::default()
+                };
+                
+                match new_user.insert(&db).await {
+                    Ok(created_user) => {
+                        user_id = Some(created_user.id);
+                    }
+                    Err(e) => {
+                        return Json(ApiResponse::error(
+                            "Failed to create user account".to_string(),
+                            vec![format!("Database error: {}", e)],
+                        ));
+                    }
+                }
+            }
+            Ok(Some(existing)) => {
+                // User already exists, use existing user_id
+                user_id = Some(existing.id);
+            }
+            Err(e) => {
+                return Json(ApiResponse::error(
+                    "Failed to check existing user".to_string(),
+                    vec![format!("Database error: {}", e)],
+                ));
+            }
+        }
+    }
+
     let new_karyawan = KaryawanActiveModel {
         nama: Set(payload.nama),
         posisi: Set(payload.posisi),
         gaji: Set(gaji),
         kantor_id: Set(kantor_id),
+        user_id: Set(user_id),
+        created_by: Set(Some(user.id)),
+        updated_by: Set(Some(user.id)),
         foto_path: Set(None),
         foto_original_name: Set(None),
         foto_size: Set(None),
@@ -253,6 +345,7 @@ pub async fn create_karyawan(
 pub async fn update_karyawan(
     Path(id_str): Path<String>,
     State(db): State<DatabaseConnection>,
+    Extension(user): Extension<User>,
     ExtractJson(payload): ExtractJson<UpdateKaryawanRequest>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID menggunakan function
@@ -305,6 +398,20 @@ pub async fn update_karyawan(
         }
     };
 
+    // Parse user_id if provided
+    let user_id = match payload.user_id {
+        Some(ref uid) => match uid.parse::<i32>() {
+            Ok(id) => Some(id),
+            Err(_) => {
+                return Json(ApiResponse::error(
+                    "Invalid user_id format".to_string(),
+                    vec!["user_id harus berupa angka yang valid".to_string()],
+                ));
+            }
+        },
+        None => None,
+    };
+
     // Check if karyawan exists
     let existing_karyawan = match KaryawanEntity::find_by_id(id).one(&db).await {
         Ok(Some(karyawan)) => karyawan,
@@ -327,6 +434,8 @@ pub async fn update_karyawan(
     updated_karyawan.posisi = Set(payload.posisi);
     updated_karyawan.gaji = Set(gaji);
     updated_karyawan.kantor_id = Set(kantor_id);
+    updated_karyawan.user_id = Set(user_id);
+    updated_karyawan.updated_by = Set(Some(user.id));
 
     match updated_karyawan.update(&db).await {
         Ok(karyawan) => Json(ApiResponse::success(
@@ -391,6 +500,7 @@ pub async fn delete_karyawan(
 
 pub async fn create_karyawan_with_photo(
     State(db): State<DatabaseConnection>,
+    Extension(user): Extension<User>,
     mut multipart: Multipart,
 ) -> Json<ApiResponse<Karyawan>> {
     let mut karyawan_data: Option<CreateKaryawanRequest> = None;
@@ -401,7 +511,7 @@ pub async fn create_karyawan_with_photo(
         let name = field.name().unwrap_or("").to_string();
 
         match name.as_str() {
-            "nama" | "posisi" | "gaji" | "kantor_id" => {
+            "nama" | "posisi" | "gaji" | "kantor_id" | "user_id" => {
                 let value = field.text().await.unwrap_or_default();
                 
                 // Build the karyawan data incrementally
@@ -411,6 +521,7 @@ pub async fn create_karyawan_with_photo(
                         posisi: String::new(),
                         gaji: String::new(),
                         kantor_id: String::new(),
+                        user_id: None,
                     });
                 }
 
@@ -420,6 +531,7 @@ pub async fn create_karyawan_with_photo(
                         "posisi" => data.posisi = value,
                         "gaji" => data.gaji = value,
                         "kantor_id" => data.kantor_id = value,
+                        "user_id" => data.user_id = if value.is_empty() { None } else { Some(value) },
                         _ => {}
                     }
                 }
@@ -508,11 +620,110 @@ pub async fn create_karyawan_with_photo(
         }
     };
 
+    // Parse user_id if provided
+    let mut user_id = match payload.user_id {
+        Some(ref uid) => match uid.parse::<i32>() {
+            Ok(id) => Some(id),
+            Err(_) => {
+                // Clean up uploaded file if parsing fails
+                if let Some(file) = &uploaded_file {
+                    let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+                }
+                
+                return Json(ApiResponse::error(
+                    "Invalid user_id format".to_string(),
+                    vec!["user_id harus berupa angka yang valid".to_string()],
+                ));
+            }
+        },
+        None => None,
+    };
+
+    // Auto-create user if user_id is not provided
+    if user_id.is_none() {
+        // Generate username from nama (lowercase, remove spaces)
+        let username = payload.nama.to_lowercase().replace(" ", "");
+        
+        // Generate email from username
+        let email = format!("{}@karyawan.local", username);
+        
+        // Check if username already exists
+        let existing_user = UserEntity::find()
+            .filter(crate::models::user::Column::Username.eq(&username))
+            .one(&db)
+            .await;
+        
+        match existing_user {
+            Ok(None) => {
+                // User doesn't exist, create new user
+                let default_password = "12345678";
+                let password_hash = match PasswordService::hash_password(default_password) {
+                    Ok(hash) => hash,
+                    Err(e) => {
+                        // Clean up uploaded file if password hashing fails
+                        if let Some(file) = &uploaded_file {
+                            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+                        }
+                        
+                        return Json(ApiResponse::error(
+                            "Failed to hash password".to_string(),
+                            vec![format!("Error: {}", e)],
+                        ));
+                    }
+                };
+                
+                let new_user = UserActiveModel {
+                    username: Set(username.clone()),
+                    email: Set(email),
+                    password_hash: Set(password_hash),
+                    full_name: Set(Some(payload.nama.clone())),
+                    is_active: Set(true),
+                    ..Default::default()
+                };
+                
+                match new_user.insert(&db).await {
+                    Ok(created_user) => {
+                        user_id = Some(created_user.id);
+                    }
+                    Err(e) => {
+                        // Clean up uploaded file if user creation fails
+                        if let Some(file) = &uploaded_file {
+                            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+                        }
+                        
+                        return Json(ApiResponse::error(
+                            "Failed to create user account".to_string(),
+                            vec![format!("Database error: {}", e)],
+                        ));
+                    }
+                }
+            }
+            Ok(Some(existing)) => {
+                // User already exists, use existing user_id
+                user_id = Some(existing.id);
+            }
+            Err(e) => {
+                // Clean up uploaded file if database check fails
+                if let Some(file) = &uploaded_file {
+                    let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+                }
+                
+                return Json(ApiResponse::error(
+                    "Failed to check existing user".to_string(),
+                    vec![format!("Database error: {}", e)],
+                ));
+            }
+        }
+    }
+
     let new_karyawan = KaryawanActiveModel {
         nama: Set(payload.nama),
         posisi: Set(payload.posisi),
         gaji: Set(gaji),
         kantor_id: Set(kantor_id),
+        user_id: Set(user_id),
+        created_by: Set(Some(user.id)),
+        updated_by: Set(Some(user.id)),
         foto_path: Set(uploaded_file.as_ref().map(|f| f.file_path.clone())),
         foto_original_name: Set(uploaded_file.as_ref().map(|f| f.original_name.clone())),
         foto_size: Set(uploaded_file.as_ref().map(|f| f.size)),
@@ -542,6 +753,7 @@ pub async fn create_karyawan_with_photo(
 pub async fn upload_karyawan_photo(
     Path(id_str): Path<String>,
     State(db): State<DatabaseConnection>,
+    Extension(user): Extension<User>,
     mut multipart: Multipart,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID
@@ -612,6 +824,7 @@ pub async fn upload_karyawan_photo(
     updated_karyawan.foto_original_name = Set(Some(uploaded_file.original_name));
     updated_karyawan.foto_size = Set(Some(uploaded_file.size));
     updated_karyawan.foto_mime_type = Set(Some(uploaded_file.mime_type));
+    updated_karyawan.updated_by = Set(Some(user.id));
 
     match updated_karyawan.update(&db).await {
         Ok(karyawan) => Json(ApiResponse::success(
@@ -628,6 +841,7 @@ pub async fn upload_karyawan_photo(
 pub async fn delete_karyawan_photo(
     Path(id_str): Path<String>,
     State(db): State<DatabaseConnection>,
+    Extension(user): Extension<User>,
 ) -> Json<ApiResponse<Karyawan>> {
     // Validasi ID
     let id = match validate_id(&id_str) {
@@ -668,6 +882,7 @@ pub async fn delete_karyawan_photo(
     updated_karyawan.foto_original_name = Set(None);
     updated_karyawan.foto_size = Set(None);
     updated_karyawan.foto_mime_type = Set(None);
+    updated_karyawan.updated_by = Set(Some(user.id));
 
     match updated_karyawan.update(&db).await {
         Ok(karyawan) => Json(ApiResponse::success(

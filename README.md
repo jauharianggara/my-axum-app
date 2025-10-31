@@ -6,11 +6,13 @@ REST API untuk manajemen data karyawan dan kantor yang dibangun dengan Rust dan 
 
 - **JWT Authentication**: Sistem autentikasi lengkap dengan JWT token dan password hashing
 - **User Management**: Register, login, dan protected endpoints dengan bcrypt security
+- **User Tracking**: Setiap karyawan mencatat user yang membuat dan mengupdate (created_by/updated_by)
 - **CRUD Operations**: Create, Read, Update, Delete untuk karyawan dan kantor
 - **Photo Upload Management**: Upload, update, dan delete foto karyawan dengan validasi keamanan
 - **Database Integration**: MySQL database dengan Sea-ORM dan automated migrations
 - **Comprehensive Validation**: Validasi data yang ketat dengan database existence check
 - **Kantor Relationship**: Sistem kantor wajib untuk setiap karyawan (no freelancer)
+- **Foreign Key Constraints**: Relasi database antara karyawan-kantor dan karyawan-user
 - **JSON Responses**: Response API yang konsisten dalam format JSON
 - **Error Handling**: Penanganan error yang informatif dan user-friendly
 - **Clean Architecture**: Struktur kode yang terorganisir dengan separation of concerns

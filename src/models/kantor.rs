@@ -13,12 +13,26 @@ pub struct Model {
     pub latitude: Decimal,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    pub created_by: Option<i32>,
+    pub updated_by: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::karyawan::Entity")]
     Karyawan,
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::CreatedBy",
+        to = "super::user::Column::Id"
+    )]
+    CreatedByUser,
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UpdatedBy",
+        to = "super::user::Column::Id"
+    )]
+    UpdatedByUser,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
