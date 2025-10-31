@@ -74,8 +74,6 @@ pub struct CreateKaryawanRequest {
 
     #[validate(custom(function = "crate::validators::karyawan::validate_kantor_id"))]
     pub kantor_id: String,
-
-    pub user_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
@@ -91,6 +89,4 @@ pub struct UpdateKaryawanRequest {
 
     #[validate(custom(function = "crate::validators::karyawan::validate_kantor_id"))]
     pub kantor_id: String,
-
-    pub user_id: Option<String>,
 }

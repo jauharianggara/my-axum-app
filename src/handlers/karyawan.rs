@@ -239,79 +239,63 @@ pub async fn create_karyawan(
         }
     };
 
-    // Parse user_id if provided
-    let mut user_id = match payload.user_id {
-        Some(ref uid) => match uid.parse::<i32>() {
-            Ok(id) => Some(id),
-            Err(_) => {
-                return Json(ApiResponse::error(
-                    "Invalid user_id format".to_string(),
-                    vec!["user_id harus berupa angka yang valid".to_string()],
-                ));
-            }
-        },
-        None => None,
-    };
-
-    // Auto-create user if user_id is not provided
-    if user_id.is_none() {
-        // Generate username from nama (lowercase, remove spaces)
-        let username = payload.nama.to_lowercase().replace(" ", "");
-        
-        // Generate email from username
-        let email = format!("{}@karyawan.local", username);
-        
-        // Check if username already exists
-        let existing_user = UserEntity::find()
-            .filter(crate::models::user::Column::Username.eq(&username))
-            .one(&db)
-            .await;
-        
-        match existing_user {
-            Ok(None) => {
-                // User doesn't exist, create new user
-                let default_password = "12345678";
-                let password_hash = match PasswordService::hash_password(default_password) {
-                    Ok(hash) => hash,
-                    Err(e) => {
-                        return Json(ApiResponse::error(
-                            "Failed to hash password".to_string(),
-                            vec![format!("Error: {}", e)],
-                        ));
-                    }
-                };
-                
-                let new_user = UserActiveModel {
-                    username: Set(username.clone()),
-                    email: Set(email),
-                    password_hash: Set(password_hash),
-                    full_name: Set(Some(payload.nama.clone())),
-                    is_active: Set(true),
-                    ..Default::default()
-                };
-                
-                match new_user.insert(&db).await {
-                    Ok(created_user) => {
-                        user_id = Some(created_user.id);
-                    }
-                    Err(e) => {
-                        return Json(ApiResponse::error(
-                            "Failed to create user account".to_string(),
-                            vec![format!("Database error: {}", e)],
-                        ));
-                    }
+    // Auto-create user - generate username from nama (lowercase, remove spaces)
+    let mut user_id = None;
+    let username = payload.nama.to_lowercase().replace(" ", "");
+    
+    // Generate email from username
+    let email = format!("{}@karyawan.local", username);
+    
+    // Check if username already exists
+    let existing_user = UserEntity::find()
+        .filter(crate::models::user::Column::Username.eq(&username))
+        .one(&db)
+        .await;
+    
+    match existing_user {
+        Ok(None) => {
+            // User doesn't exist, create new user
+            let default_password = "12345678";
+            let password_hash = match PasswordService::hash_password(default_password) {
+                Ok(hash) => hash,
+                Err(e) => {
+                    return Json(ApiResponse::error(
+                        "Failed to hash password".to_string(),
+                        vec![format!("Error: {}", e)],
+                    ));
+                }
+            };
+            
+            let new_user = UserActiveModel {
+                username: Set(username.clone()),
+                email: Set(email),
+                password_hash: Set(password_hash),
+                full_name: Set(Some(payload.nama.clone())),
+                is_active: Set(true),
+                ..Default::default()
+            };
+            
+            match new_user.insert(&db).await {
+                Ok(created_user) => {
+                    user_id = Some(created_user.id);
+                }
+                Err(e) => {
+                    return Json(ApiResponse::error(
+                        "Failed to create user account".to_string(),
+                        vec![format!("Database error: {}", e)],
+                    ));
                 }
             }
-            Ok(Some(existing)) => {
-                // User already exists, use existing user_id
-                user_id = Some(existing.id);
-            }
-            Err(e) => {
-                return Json(ApiResponse::error(
-                    "Failed to check existing user".to_string(),
-                    vec![format!("Database error: {}", e)],
-                ));
-            }
+        }
+        Ok(Some(existing)) => {
+            // User already exists, use existing user_id
+            user_id = Some(existing.id);
+        }
+        Err(e) => {
+            return Json(ApiResponse::error(
+                "Failed to check existing user".to_string(),
+                vec![format!("Database error: {}", e)],
+            ));
         }
     }
 
@@ -398,20 +382,6 @@ pub async fn update_karyawan(
         }
     };
 
-    // Parse user_id if provided
-    let user_id = match payload.user_id {
-        Some(ref uid) => match uid.parse::<i32>() {
-            Ok(id) => Some(id),
-            Err(_) => {
-                return Json(ApiResponse::error(
-                    "Invalid user_id format".to_string(),
-                    vec!["user_id harus berupa angka yang valid".to_string()],
-                ));
-            }
-        },
-        None => None,
-    };
-
     // Check if karyawan exists
     let existing_karyawan = match KaryawanEntity::find_by_id(id).one(&db).await {
         Ok(Some(karyawan)) => karyawan,
@@ -434,7 +404,6 @@ pub async fn update_karyawan(
     updated_karyawan.posisi = Set(payload.posisi);
     updated_karyawan.gaji = Set(gaji);
     updated_karyawan.kantor_id = Set(kantor_id);
-    updated_karyawan.user_id = Set(user_id);
     updated_karyawan.updated_by = Set(Some(user.id));
 
     match updated_karyawan.update(&db).await {
@@ -511,7 +480,7 @@ pub async fn create_karyawan_with_photo(
         let name = field.name().unwrap_or("").to_string();
 
         match name.as_str() {
-            "nama" | "posisi" | "gaji" | "kantor_id" | "user_id" => {
+            "nama" | "posisi" | "gaji" | "kantor_id" => {
                 let value = field.text().await.unwrap_or_default();
                 
                 // Build the karyawan data incrementally
@@ -521,7 +490,6 @@ pub async fn create_karyawan_with_photo(
                         posisi: String::new(),
                         gaji: String::new(),
                         kantor_id: String::new(),
-                        user_id: None,
                     });
                 }
 
@@ -531,7 +499,6 @@ pub async fn create_karyawan_with_photo(
                         "posisi" => data.posisi = value,
                         "gaji" => data.gaji = value,
                         "kantor_id" => data.kantor_id = value,
-                        "user_id" => data.user_id = if value.is_empty() { None } else { Some(value) },
                         _ => {}
                     }
                 }
@@ -620,99 +587,78 @@ pub async fn create_karyawan_with_photo(
         }
     };
 
-    // Parse user_id if provided
-    let mut user_id = match payload.user_id {
-        Some(ref uid) => match uid.parse::<i32>() {
-            Ok(id) => Some(id),
-            Err(_) => {
-                // Clean up uploaded file if parsing fails
-                if let Some(file) = &uploaded_file {
-                    let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+    // Auto-create user - generate username from nama (lowercase, remove spaces)
+    let mut user_id = None;
+    let username = payload.nama.to_lowercase().replace(" ", "");
+    
+    // Generate email from username
+    let email = format!("{}@karyawan.local", username);
+    
+    // Check if username already exists
+    let existing_user = UserEntity::find()
+        .filter(crate::models::user::Column::Username.eq(&username))
+        .one(&db)
+        .await;
+    
+    match existing_user {
+        Ok(None) => {
+            // User doesn't exist, create new user
+            let default_password = "12345678";
+            let password_hash = match PasswordService::hash_password(default_password) {
+                Ok(hash) => hash,
+                Err(e) => {
+                    // Clean up uploaded file if password hashing fails
+                    if let Some(file) = &uploaded_file {
+                        let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
+                    }
+                    
+                    return Json(ApiResponse::error(
+                        "Failed to hash password".to_string(),
+                        vec![format!("Error: {}", e)],
+                    ));
                 }
-                
-                return Json(ApiResponse::error(
-                    "Invalid user_id format".to_string(),
-                    vec!["user_id harus berupa angka yang valid".to_string()],
-                ));
-            }
-        },
-        None => None,
-    };
-
-    // Auto-create user if user_id is not provided
-    if user_id.is_none() {
-        // Generate username from nama (lowercase, remove spaces)
-        let username = payload.nama.to_lowercase().replace(" ", "");
-        
-        // Generate email from username
-        let email = format!("{}@karyawan.local", username);
-        
-        // Check if username already exists
-        let existing_user = UserEntity::find()
-            .filter(crate::models::user::Column::Username.eq(&username))
-            .one(&db)
-            .await;
-        
-        match existing_user {
-            Ok(None) => {
-                // User doesn't exist, create new user
-                let default_password = "12345678";
-                let password_hash = match PasswordService::hash_password(default_password) {
-                    Ok(hash) => hash,
-                    Err(e) => {
-                        // Clean up uploaded file if password hashing fails
-                        if let Some(file) = &uploaded_file {
-                            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
-                        }
-                        
-                        return Json(ApiResponse::error(
-                            "Failed to hash password".to_string(),
-                            vec![format!("Error: {}", e)],
-                        ));
+            };
+            
+            let new_user = UserActiveModel {
+                username: Set(username.clone()),
+                email: Set(email),
+                password_hash: Set(password_hash),
+                full_name: Set(Some(payload.nama.clone())),
+                is_active: Set(true),
+                ..Default::default()
+            };
+            
+            match new_user.insert(&db).await {
+                Ok(created_user) => {
+                    user_id = Some(created_user.id);
+                }
+                Err(e) => {
+                    // Clean up uploaded file if user creation fails
+                    if let Some(file) = &uploaded_file {
+                        let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
                     }
-                };
-                
-                let new_user = UserActiveModel {
-                    username: Set(username.clone()),
-                    email: Set(email),
-                    password_hash: Set(password_hash),
-                    full_name: Set(Some(payload.nama.clone())),
-                    is_active: Set(true),
-                    ..Default::default()
-                };
-                
-                match new_user.insert(&db).await {
-                    Ok(created_user) => {
-                        user_id = Some(created_user.id);
-                    }
-                    Err(e) => {
-                        // Clean up uploaded file if user creation fails
-                        if let Some(file) = &uploaded_file {
-                            let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
-                        }
-                        
-                        return Json(ApiResponse::error(
-                            "Failed to create user account".to_string(),
-                            vec![format!("Database error: {}", e)],
-                        ));
-                    }
+                    
+                    return Json(ApiResponse::error(
+                        "Failed to create user account".to_string(),
+                        vec![format!("Database error: {}", e)],
+                    ));
                 }
             }
-            Ok(Some(existing)) => {
-                // User already exists, use existing user_id
-                user_id = Some(existing.id);
+        }
+        Ok(Some(existing)) => {
+            // User already exists, use existing user_id
+            user_id = Some(existing.id);
+        }
+        Err(e) => {
+            // Clean up uploaded file if database check fails
+            if let Some(file) = &uploaded_file {
+                let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
             }
-            Err(e) => {
-                // Clean up uploaded file if database check fails
-                if let Some(file) = &uploaded_file {
-                    let _ = FileUploadService::delete_karyawan_photo(&file.file_path).await;
-                }
-                
-                return Json(ApiResponse::error(
-                    "Failed to check existing user".to_string(),
-                    vec![format!("Database error: {}", e)],
-                ));
-            }
+            
+            return Json(ApiResponse::error(
+                "Failed to check existing user".to_string(),
+                vec![format!("Database error: {}", e)],
+            ));
         }
     }
 
