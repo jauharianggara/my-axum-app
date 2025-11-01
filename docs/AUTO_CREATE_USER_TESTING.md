@@ -127,6 +127,10 @@ Windows PowerShell version dengan fitur yang sama.
    - Password: `password123`
    - Or create via `/api/auth/register`
 
+5. **Frontend CORS Setup** (if testing from browser):
+   - Server now includes CORS support for `http://localhost:3000` and `http://localhost:5173`
+   - If using different port, add it to CORS configuration in `src/main.rs`
+
 ### Run Python Test
 
 ```bash
@@ -369,6 +373,29 @@ curl -X GET http://localhost:8080/api/user/profile \
 **Expected Behavior**: 
 - System should reuse existing user, not create duplicate
 - Check implementation handles this correctly
+
+### Issue: CORS Error (Frontend Access)
+
+**Error**: "Access to XMLHttpRequest at 'http://localhost:8080/api/auth/login' from origin 'http://localhost:3000' has been blocked by CORS policy"
+
+**Solution**:
+1. Server includes CORS configuration for common development ports
+2. Allowed origins: `localhost:3000`, `localhost:5173`, `127.0.0.1:3000`
+3. If using different port, add to CORS config in `src/main.rs`:
+
+```rust
+.allow_origin([
+    "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+    "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+    "http://localhost:YOUR_PORT".parse::<HeaderValue>().unwrap(), // Add your port
+])
+```
+
+**Test CORS Configuration**:
+```powershell
+# Test preflight request
+Invoke-WebRequest -Uri "http://localhost:8080/api/auth/login" -Method OPTIONS -Headers @{"Origin"="http://localhost:3000"}
+```
 
 ## Database Verification
 

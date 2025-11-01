@@ -1,6 +1,8 @@
 use axum::{Router, routing::get, middleware::from_fn_with_state};
 use tokio::net::TcpListener;
 use std::env;
+use tower_http::cors::CorsLayer;
+use axum::http::{Method, HeaderValue, HeaderName};
 
 // Import modules
 mod database;
@@ -56,6 +58,29 @@ async fn main() {
         .nest(
             "/api/jabatans", 
             jabatan_routes(db.clone())
+        )
+        // Add CORS layer to allow frontend requests
+        .layer(
+            CorsLayer::new()
+                // Allow requests from frontend development server
+                .allow_origin([
+                    "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+                    "http://localhost:5173".parse::<HeaderValue>().unwrap(), // Vite default port
+                    "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
+                ])
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers([
+                    HeaderName::from_static("authorization"),
+                    HeaderName::from_static("content-type"),
+                    HeaderName::from_static("accept"),
+                ])
+                .allow_credentials(true)
         )
         .with_state(db);
 
