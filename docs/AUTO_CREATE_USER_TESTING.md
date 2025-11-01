@@ -41,7 +41,7 @@ Windows PowerShell version dengan fitur yang sama.
 │ POST /api/karyawans                                         │
 │ {                                                           │
 │   "nama": "Budi Santoso Test",                             │
-│   "posisi": "Software Engineer",                           │
+│   "jabatan_id": "2",                                       │
 │   "gaji": "8500000",                                       │
 │   "kantor_id": "1"                                         │
 │   // NO user_id = auto-create!                            │
@@ -166,7 +166,7 @@ Expected auto-created email: budisantosostest@karyawan.local
 ✅ Karyawan created successfully
    Karyawan ID: 5
    Karyawan Name: Budi Santoso Test
-   Karyawan Position: Software Engineer
+   Karyawan Jabatan ID: 2
    Karyawan Salary: Rp 8,500,000
    Auto-created User ID: 3
 ✅ User auto-created successfully!
@@ -294,7 +294,7 @@ curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{
     "nama": "Test Manual User",
-    "posisi": "Tester",
+    "jabatan_id": "1",
     "gaji": "5000000",
     "kantor_id": "1"
   }'

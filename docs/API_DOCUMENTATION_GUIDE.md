@@ -112,6 +112,13 @@ Jika perlu set token manual:
 - `POST /api/auth/login` - User login
 - `GET /api/user/me` - Current user profile
 
+### Jabatan Management (Protected)
+- `GET /api/jabatans` - List all job positions
+- `POST /api/jabatans` - Create job position
+- `GET /api/jabatans/{id}` - Get job position by ID
+- `PUT /api/jabatans/{id}` - Update job position
+- `DELETE /api/jabatans/{id}` - Delete job position
+
 ### Kantor Management (Protected)
 - `GET /api/kantors` - List all offices
 - `POST /api/kantors` - Create office

@@ -30,6 +30,31 @@ Jika username sudah ada di database:
 - Karyawan akan di-link ke user yang existing
 - Multiple karyawan bisa share user yang sama
 
+## Prerequisites
+
+### Jabatan (Job Position) Requirements
+
+Sebelum membuat karyawan, pastikan sudah ada jabatan yang tersedia:
+
+1. **Create Jabatan First**:
+   ```bash
+   POST /api/jabatans
+   {
+     "nama": "Software Engineer", 
+     "deskripsi": "Develops and maintains software applications"
+   }
+   ```
+
+2. **Get Available Jabatan**:
+   ```bash
+   GET /api/jabatans
+   ```
+
+3. **Use jabatan_id in Karyawan Creation**:
+   - Field `jabatan_id` adalah **required** untuk semua karyawan
+   - Harus mereferensi jabatan yang sudah ada di database
+   - Gunakan ID dari response create/get jabatan
+
 ## API Endpoints
 
 ### Create Karyawan (Auto-create User)
@@ -40,7 +65,7 @@ Jika username sudah ada di database:
 ```json
 {
   "nama": "Budi Santoso",
-  "posisi": "Software Engineer",
+  "jabatan_id": "2",
   "gaji": "8000000",
   "kantor_id": "1"
 }
@@ -54,7 +79,7 @@ Jika username sudah ada di database:
   "data": {
     "id": 1,
     "nama": "Budi Santoso",
-    "posisi": "Software Engineer",
+    "jabatan_id": 2,
     "gaji": 8000000,
     "kantor_id": 1,
     "user_id": 2,  // Auto-created user ID
@@ -78,7 +103,7 @@ Jika username sudah ada di database:
 ```json
 {
   "nama": "Ahmad Wijaya",
-  "posisi": "Manager",
+  "jabatan_id": "3",
   "gaji": "12000000",
   "kantor_id": "1",
   "user_id": "5"  // Use existing user
@@ -94,7 +119,7 @@ Sistem akan menggunakan user dengan ID 5, tidak membuat user baru.
 **Request** (multipart/form-data):
 ```
 nama: Siti Nurhaliza
-posisi: Designer
+jabatan_id: 4
 gaji: 7500000
 kantor_id: 2
 foto: [binary file]
@@ -216,16 +241,41 @@ CREATE TABLE users (
 CREATE TABLE karyawan (
     id INT PRIMARY KEY AUTO_INCREMENT,
     nama VARCHAR(50) NOT NULL,
-    posisi VARCHAR(30) NOT NULL,
+    jabatan_id INT NOT NULL,
     gaji INT NOT NULL,
     kantor_id INT NOT NULL,
     user_id INT NULL UNIQUE,
     -- ... other fields
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (jabatan_id) REFERENCES jabatan(id) ON DELETE RESTRICT
 );
 ```
 
 ## Testing
+
+### Setup Prerequisites
+
+```bash
+# 1. Create jabatan first (required for karyawan)
+curl -X POST http://localhost:8080/api/jabatans \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama": "Software Engineer",
+    "deskripsi": "Develops and maintains software applications"
+  }'
+
+# 2. Create kantor if not exists
+curl -X POST http://localhost:8080/api/kantors \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nama": "Kantor Pusat",
+    "alamat": "Jl. Merdeka No.1",
+    "longitude": "106.827153",
+    "latitude": "-6.175110"
+  }'
+```
 
 ### Test Scenario 1: Auto-create User
 
@@ -236,7 +286,7 @@ curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{
     "nama": "Test User Auto",
-    "posisi": "Tester",
+    "jabatan_id": "1",
     "gaji": "5000000",
     "kantor_id": "1"
   }'
@@ -259,7 +309,7 @@ curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{
     "nama": "John Doe",
-    "posisi": "Developer",
+    "jabatan_id": "2",
     "gaji": "7000000",
     "kantor_id": "1"
   }'
@@ -270,7 +320,7 @@ curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{
     "nama": "John Doe",
-    "posisi": "Designer",
+    "jabatan_id": "3",
     "gaji": "6500000",
     "kantor_id": "2"
   }'
@@ -287,7 +337,7 @@ curl -X POST http://localhost:8080/api/karyawans \
   -H "Content-Type: application/json" \
   -d '{
     "nama": "Existing User Karyawan",
-    "posisi": "Manager",
+    "jabatan_id": "5",
     "gaji": "10000000",
     "kantor_id": "1",
     "user_id": "5"

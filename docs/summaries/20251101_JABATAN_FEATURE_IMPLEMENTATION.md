@@ -3,8 +3,11 @@
 ## Date
 2025-11-01
 
+## Update Notice
+**Last Updated**: 2025-11-01 - Updated to reflect removal of `posisi` field (see [20251101_REMOVE_POSISI_FIELD.md](./20251101_REMOVE_POSISI_FIELD.md))
+
 ## Overview
-Added a new `jabatan` (job position) table and integrated it with the `karyawan` table as a mandatory field. Every employee must now have a job position assigned.
+Added a new `jabatan` (job position) table and integrated it with the `karyawan` table as a mandatory field. Every employee must now have a job position assigned through `jabatan_id` field. The old `posisi` field has been completely removed.
 
 ## Database Changes
 
@@ -205,10 +208,9 @@ Now requires `jabatan_id` field:
 ```json
 {
   "nama": "Budi Santoso",
-  "posisi": "IT Manager",
   "gaji": "15000000",
   "kantor_id": "1",
-  "jabatan_id": "1"   ← NEW REQUIRED FIELD
+  "jabatan_id": "1"   ← REQUIRED FIELD (posisi no longer used)
 }
 ```
 
@@ -255,7 +257,7 @@ $jabatanBody = '{"nama_jabatan":"Manager","deskripsi":"Jabatan manajer"}'
 $jabatan = Invoke-RestMethod -Uri http://localhost:8080/api/jabatans -Method Post -Body $jabatanBody -Headers $headers
 
 # Create karyawan with jabatan
-$karyawanBody = '{"nama":"Budi Santoso","posisi":"IT Manager","gaji":"15000000","kantor_id":"1","jabatan_id":"1"}'
+$karyawanBody = '{"nama":"Budi Santoso","gaji":"15000000","kantor_id":"1","jabatan_id":"1"}'
 $karyawan = Invoke-RestMethod -Uri http://localhost:8080/api/karyawans -Method Post -Body $karyawanBody -Headers $headers
 ```
 
@@ -265,7 +267,7 @@ $karyawan = Invoke-RestMethod -Uri http://localhost:8080/api/karyawans -Method P
 SELECT * FROM jabatan;
 
 -- Check karyawan with jabatan_id
-SELECT id, nama, posisi, kantor_id, jabatan_id 
+SELECT id, nama, kantor_id, jabatan_id 
 FROM karyawan 
 ORDER BY id DESC LIMIT 5;
 

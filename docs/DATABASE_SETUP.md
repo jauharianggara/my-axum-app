@@ -77,9 +77,11 @@ SHOW TABLES;
 -- +------------------------+
 -- | Tables_in_my_axum_db   |
 -- +------------------------+
+-- | jabatan                |
 -- | kantor                 |
 -- | karyawan               |
 -- | seaql_migrations       |
+-- | users                  |
 -- +------------------------+
 
 DESCRIBE karyawan;
@@ -88,11 +90,29 @@ DESCRIBE karyawan;
 -- +------------+------------+------+-----+-------------------+-------------------+
 -- | id         | int        | NO   | PRI | NULL              | auto_increment    |
 -- | nama       | varchar(50)| NO   |     | NULL              |                   |
--- | posisi     | varchar(30)| NO   |     | NULL              |                   |
+-- | jabatan_id | int        | NO   | MUL | NULL              |                   |
 -- | gaji       | int        | NO   |     | NULL              |                   |
+-- | kantor_id  | int        | NO   | MUL | NULL              |                   |
+-- | foto       | varchar(255)| YES |     | NULL              |                   |
+-- | user_id    | int        | YES  | UNI | NULL              |                   |
+-- | created_by | int        | NO   |     | NULL              |                   |
+-- | updated_by | int        | NO   |     | NULL              |                   |
 -- | created_at | timestamp  | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 -- | updated_at | timestamp  | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 -- +------------+------------+------+-----+-------------------+-------------------+
+
+DESCRIBE jabatan;
+-- +------------+--------------+------+-----+-------------------+-------------------+
+-- | Field      | Type         | Null | Key | Default           | Extra             |
+-- +------------+--------------+------+-----+-------------------+-------------------+
+-- | id         | int          | NO   | PRI | NULL              | auto_increment    |
+-- | nama       | varchar(100) | NO   |     | NULL              |                   |
+-- | deskripsi  | text         | YES  |     | NULL              |                   |
+-- | created_by | int          | NO   |     | NULL              |                   |
+-- | updated_by | int          | NO   |     | NULL              |                   |
+-- | created_at | timestamp    | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+-- | updated_at | timestamp    | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+-- +------------+--------------+------+-----+-------------------+-------------------+
 
 DESCRIBE kantor;
 -- +------------+--------------+------+-----+-------------------+-------------------+
@@ -103,6 +123,8 @@ DESCRIBE kantor;
 -- | alamat     | varchar(200) | NO   |     | NULL              |                   |
 -- | longitude  | decimal(10,7)| NO   |     | NULL              |                   |
 -- | latitude   | decimal(10,7)| NO   |     | NULL              |                   |
+-- | created_by | int          | NO   |     | NULL              |                   |
+-- | updated_by | int          | NO   |     | NULL              |                   |
 -- | created_at | timestamp    | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 -- | updated_at | timestamp    | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
 -- +------------+--------------+------+-----+-------------------+-------------------+
@@ -133,11 +155,25 @@ Output yang diharapkan:
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -UseBasicParsing
 
 # POST create new karyawan
-$body = '{"nama":"John Doe","posisi":"Developer","gaji":"8000000"}'
+$body = '{"nama":"John Doe","jabatan_id":"1","gaji":"8000000","kantor_id":"1"}'
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
 
 # GET karyawan by ID
 Invoke-WebRequest -Uri http://localhost:8080/api/karyawans/1 -UseBasicParsing
+```
+
+### Test Jabatan API:
+
+```powershell
+# GET all jabatans (should return empty array initially)
+Invoke-WebRequest -Uri http://localhost:8080/api/jabatans -UseBasicParsing
+
+# POST create new jabatan
+$body = '{"nama":"Software Engineer","deskripsi":"Develops and maintains software applications"}'
+Invoke-WebRequest -Uri http://localhost:8080/api/jabatans -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
+
+# GET jabatan by ID
+Invoke-WebRequest -Uri http://localhost:8080/api/jabatans/1 -UseBasicParsing
 ```
 
 ### Test Kantor API:
@@ -225,11 +261,25 @@ cargo run -- migrate refresh
 
 ## 🔍 Database Schema
 
+### Jabatan Table:
+- `id`: Primary key, auto-increment
+- `nama`: VARCHAR(100), job position name
+- `deskripsi`: TEXT, job position description (optional)
+- `created_by`: INT, user who created the record
+- `updated_by`: INT, user who last updated the record
+- `created_at`: TIMESTAMP, creation time
+- `updated_at`: TIMESTAMP, last update time
+
 ### Karyawan Table:
 - `id`: Primary key, auto-increment
 - `nama`: VARCHAR(50), employee name
-- `posisi`: VARCHAR(30), job position  
+- `jabatan_id`: INT, foreign key to jabatan table
 - `gaji`: INT, salary amount
+- `kantor_id`: INT, foreign key to kantor table
+- `foto`: VARCHAR(255), photo filename (optional)
+- `user_id`: INT, foreign key to users table (optional)
+- `created_by`: INT, user who created the record
+- `updated_by`: INT, user who last updated the record
 - `created_at`: TIMESTAMP, creation time
 - `updated_at`: TIMESTAMP, last update time
 
@@ -239,12 +289,19 @@ cargo run -- migrate refresh
 - `alamat`: VARCHAR(200), office address
 - `longitude`: DECIMAL(10,7), geographic longitude
 - `latitude`: DECIMAL(10,7), geographic latitude
+- `created_by`: INT, user who created the record
+- `updated_by`: INT, user who last updated the record
 - `created_at`: TIMESTAMP, creation time
 - `updated_at`: TIMESTAMP, last update time
 
 ## 🎯 Features
 
-✅ **Full CRUD Operations** untuk kedua tabel
+✅ **Full CRUD Operations** untuk semua tabel (jabatan, karyawan, kantor, users)
+✅ **Relational Database Design** dengan foreign key constraints
+✅ **Job Position Management** dengan tabel jabatan terpisah
+✅ **User Authentication & Authorization** dengan JWT
+✅ **User Tracking** untuk audit trail (created_by, updated_by)
+✅ **Photo Upload** untuk karyawan dengan validasi file
 ✅ **Data Validation** dengan custom validators
 ✅ **Auto-generated timestamps** 
 ✅ **Geographic coordinate validation**
