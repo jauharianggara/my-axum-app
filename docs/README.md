@@ -1,6 +1,6 @@
 # 📚 Documentation Directory
 
-Direktori ini berisi semua dokumentasi terkait Karyawan & Kantor Management API.
+Direktori ini berisi semua dokumentasi terkait Secure Karyawan & Kantor Management API dengan comprehensive security features.
 
 ## 📂 Struktur Dokumentasi
 
@@ -8,9 +8,16 @@ Direktori ini berisi semua dokumentasi terkait Karyawan & Kantor Management API.
 - **[DATABASE_SETUP.md](DATABASE_SETUP.md)** - Setup database MySQL dan konfigurasi
 - **[DOCKER_README.md](DOCKER_README.md)** - Docker setup dan container management
 - **[PROJECT_ORGANIZATION.md](PROJECT_ORGANIZATION.md)** - Struktur project dan organization
+- **[CORS_CONFIGURATION_GUIDE.md](CORS_CONFIGURATION_GUIDE.md)** - Environment-based CORS configuration guide
+
+### 🛡️ Security Documentation
+- **[SECURITY_IMPLEMENTATION.md](SECURITY_IMPLEMENTATION.md)** - Comprehensive security features implementation
+- **[SECURITY_STATUS_REPORT.md](SECURITY_STATUS_REPORT.md)** - Security implementation status dan production readiness
+- **[CORS_IMPLEMENTATION_SUMMARY.md](CORS_IMPLEMENTATION_SUMMARY.md)** - CORS environment variable implementation
+- **[DOCUMENTATION_UPDATE_SUMMARY.md](DOCUMENTATION_UPDATE_SUMMARY.md)** - Complete documentation update summary
 
 ### 🧪 Testing Documentation
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing guide
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing guide dengan security testing
 - **[SCHEMATHESIS_GUIDE.md](SCHEMATHESIS_GUIDE.md)** - API testing dengan Schemathesis
 - **[test-results/](test-results/)** - Hasil testing dan validation reports
 
@@ -18,24 +25,29 @@ Direktori ini berisi semua dokumentasi terkait Karyawan & Kantor Management API.
 - **[summaries/](summaries/)** - Project progress summaries dan implementation docs
 - **[20251029_ORGANIZATION_COMPLETION.md](20251029_ORGANIZATION_COMPLETION.md)** - Project completion summary
 
-## 🚀 API Documentation (NEW!)
+## 🚀 API Documentation
 
-### 📖 OpenAPI/Swagger
-- **[openapi.yaml](openapi.yaml)** - Complete OpenAPI 3.0.3 specification
+### 📖 OpenAPI/Swagger (v6.0.0)
+- **[openapi.yaml](openapi.yaml)** - Complete OpenAPI 3.0.3 specification dengan security features
   - Interactive API documentation
-  - Request/response schemas
-  - Authentication flows
+  - Request/response schemas dengan security validation
+  - JWT authentication flows
   - Error handling specifications
-  - Photo upload documentation
+  - Security headers documentation
+  - Rate limiting specifications
+  - CORS configuration documentation
+  - Photo upload documentation dengan security scanning
 
-### 📬 Postman Collection
-- **[postman_collection.json](postman_collection.json)** - Ready-to-use Postman collection
+### 📬 Postman Collection (Enhanced)
+- **[postman_collection.json](postman_collection.json)** - Ready-to-use Postman collection dengan security testing
   - Complete endpoint coverage
-  - Automated test scripts
+  - Automated test scripts dengan security validation
   - JWT authentication flow
   - Environment variable automation
-  - Security validation tests
+  - **Security validation tests** (rate limiting, CORS, injection protection)
+  - **Advanced security tests** (SQL injection, XSS, NoSQL injection)
   - Complete workflow examples
+  - Security headers validation
 
 - **[postman_environment.json](postman_environment.json)** - Postman environment setup
   - Pre-configured variables
@@ -45,13 +57,37 @@ Direktori ini berisi semua dokumentasi terkait Karyawan & Kantor Management API.
 ### 📚 Usage Guide
 - **[API_DOCUMENTATION_GUIDE.md](API_DOCUMENTATION_GUIDE.md)** - Complete guide untuk menggunakan dokumentasi API
   - Setup instructions
-  - Testing workflows
-  - Troubleshooting tips
-  - Best practices
+  - Security testing workflows
+  - Advanced security testing procedures
+  - Troubleshooting security issues
+  - Best practices untuk security testing
 
 ## 🔥 Quick Start
 
-### 1. Postman Setup
+### 1. Security Validation (Recommended First)
+```bash
+# Run essential security tests
+python tests/quick_validation.py
+
+# Expected: 100% pass rate for production readiness
+```
+
+### 2. Comprehensive Security Testing
+```bash
+# Run security tests (36 tests)
+python tests/security_tests.py
+
+# Run authentication tests (18 tests)
+python tests/auth_tests.py
+
+# Run all tests with master runner (59 total tests)
+python tests/master_test_runner.py --auto-start
+
+# Quick validation (5 essential tests)
+python tests/quick_validation.py
+```
+
+### 3. Postman Setup dengan Security Testing
 ```bash
 # Import collection ke Postman
 1. Buka Postman
@@ -59,39 +95,56 @@ Direktori ini berisi semua dokumentasi terkait Karyawan & Kantor Management API.
 3. Import docs/postman_environment.json
 4. Set baseUrl = http://localhost:8080
 5. Run "Complete Workflow Test"
+6. Run "Advanced Security Tests" folder (Enhanced dengan security features)
+7. Run "Security Headers Validation" tests
 ```
 
-### 2. OpenAPI/Swagger
+### 4. OpenAPI/Swagger
 ```bash
 # View dengan Swagger UI (optional)
 npm install -g swagger-ui-serve
 swagger-ui-serve docs/openapi.yaml
 ```
 
-### 3. Manual Testing
-Lihat **[API_DOCUMENTATION_GUIDE.md](API_DOCUMENTATION_GUIDE.md)** untuk panduan lengkap.
+### 5. Manual Testing
+Lihat **[API_DOCUMENTATION_GUIDE.md](API_DOCUMENTATION_GUIDE.md)** untuk panduan lengkap security testing.
 
 ## 📊 API Overview
 
 ### Endpoints Summary
-- **Health**: 2 endpoints (root, health check)
-- **Authentication**: 3 endpoints (register, login, profile)
-- **Kantor**: 5 endpoints (CRUD operations)
-- **Karyawan**: 9 endpoints (CRUD + photo management)
-- **Files**: 1 endpoint (photo serving)
+- **Health**: 2 endpoints (root, health check dengan security headers)
+- **Authentication**: 3 endpoints (register, login, profile dengan security validation)
+- **Kantor**: 5 endpoints (CRUD operations dengan rate limiting)
+- **Karyawan**: 9 endpoints (CRUD + photo management dengan security scanning)
+- **Jabatan**: 5 endpoints (CRUD operations dengan input validation)
+- **Files**: 1 endpoint (secure photo serving)
 
-### Security
+### 🛡️ Security Features
+- **Rate Limiting**: 60 requests per minute per IP
+- **CORS Protection**: Environment-aware configuration via CORS_ORIGINS
+- **SQL Injection Prevention**: Parameterized queries + pattern detection
+- **NoSQL Injection Prevention**: MongoDB operator filtering
+- **CSRF Protection**: Origin header validation
+- **XSS Protection**: HTML sanitization + CSP headers
+- **Security Headers**: Comprehensive security headers
+- **Input Validation**: RFC compliant validation dan sanitization
+
+### Authentication & Authorization
 - JWT Authentication dengan HMAC-SHA256
-- bcrypt password hashing
+- bcrypt password hashing dengan secure salting
 - Protected endpoints untuk semua CRUD operations
-- Photo upload validation dan security
+- Token expiry dan refresh management
 
-### Features
-- Complete CRUD operations
-- Photo upload management
-- Database relationship validation
-- Comprehensive error handling
-- Automated testing workflows
+### File Management
+- Photo upload validation dan security scanning
+- File type dan size validation
+- Path traversal prevention
+- Secure file serving dengan proper headers
+
+### Testing
+- **59 Total Tests**: 36 security + 18 auth + 5 essential validation
+- **Automated Security Testing**: Comprehensive security validation
+- **Production Readiness**: 100% pass rate required for deployment
 
 ## 🎯 Documentation Goals
 

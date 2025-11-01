@@ -1,6 +1,6 @@
 # 📚 API Documentation Guide
 
-Panduan lengkap untuk menggunakan dokumentasi API Karyawan & Kantor Management.
+Panduan lengkap untuk menggunakan dokumentasi API Karyawan & Kantor Management dengan comprehensive security features.
 
 ## 📖 Format Dokumentasi
 
@@ -15,12 +15,16 @@ File: `docs/openapi.yaml`
 - ✅ Photo upload specifications
 - ✅ Validation rules dan constraints
 - ✅ Interactive examples
+- ✅ **Security features documentation**
+- ✅ **Rate limiting specifications**
+- ✅ **Security headers documentation**
 
 **Fitur Utama**:
 - **Comprehensive**: Mencakup semua endpoint dari health check hingga file upload
 - **Interactive**: Dapat digunakan untuk testing langsung (jika ada Swagger UI)
-- **Detailed**: Schema lengkap dengan validation rules
+- **Detailed**: Schema lengkap dengan validation rules dan security features
 - **Standard Compliant**: Mengikuti OpenAPI 3.0.3 standards
+- **Security Focused**: Comprehensive security feature documentation
 
 ### 2. Postman Collection
 File: `docs/postman_collection.json`
@@ -31,6 +35,9 @@ File: `docs/postman_collection.json`
 - 🧪 **Testing Suites**: Complete workflow testing dan security validation
 - 📋 **Examples**: Real request/response examples
 - 🔐 **Authentication Flow**: Automated JWT token management
+- 🛡️ **Security Testing**: Comprehensive security test cases
+- ⚡ **Rate Limiting Tests**: Rate limiting validation
+- 🔒 **Injection Testing**: SQL/NoSQL/XSS protection validation
 
 ## 🚀 Setup Postman
 
@@ -87,6 +94,40 @@ Jalankan folder **"🧪 Test Scenarios > Security Tests"**:
 - Invalid token validation
 - Authentication bypass attempts
 
+### 5. Advanced Security Testing
+Jalankan folder **"🧪 Test Scenarios > Advanced Security Tests"**:
+- **Rate Limiting**: Test 60 requests/minute limit
+- **Security Headers**: Validate all security headers
+- **CSRF Protection**: Test origin header validation
+- **SQL Injection**: Test malicious SQL payload blocking
+- **XSS Protection**: Test script injection sanitization
+
+## 🛡️ Security Features Testing
+
+### Rate Limiting Testing
+Test rate limiting dengan menjalankan request berulang kali:
+1. Jalankan "Test Rate Limiting" request
+2. Jalankan berulang kali dengan cepat (>60 requests/minute)
+3. Seharusnya mendapatkan 429 Too Many Requests
+
+### Security Headers Validation
+Test security headers dengan "Test Security Headers":
+- Verifikasi X-Content-Type-Options: nosniff
+- Verifikasi X-Frame-Options: DENY
+- Verifikasi X-XSS-Protection: 1; mode=block
+- Verifikasi Content-Security-Policy presence
+
+### Injection Protection Testing
+Test berbagai injection attacks:
+- **SQL Injection**: `'; DROP TABLE users; --`
+- **XSS**: `<script>alert('XSS')</script>`
+- **NoSQL Injection**: `{"$ne": "admin"}`
+
+### CSRF Protection Testing
+Test CSRF protection dengan:
+- Request tanpa Origin header (should be blocked)
+- Request dengan invalid Origin (should be blocked)
+
 ## 🔐 Authentication Guide
 
 ### JWT Token Flow
@@ -140,6 +181,49 @@ Jika perlu set token manual:
 
 ### File Access
 - `GET /uploads/karyawan/photos/{filename}` - Get employee photo
+
+### Security Information
+- `GET /.well-known/security.txt` - Security policy information (if configured)
+
+## 🛡️ Security Features Overview
+
+### Implemented Security Protections
+
+#### 1. Rate Limiting
+- **Limit**: 60 requests per minute per IP address
+- **Response**: 429 Too Many Requests when exceeded
+- **Applied to**: All endpoints
+
+#### 2. CORS Protection
+- **Development**: Allows localhost:3000
+- **Production**: Configurable allowed origins
+- **CSRF Protection**: Origin header validation for state-changing requests
+
+#### 3. Injection Prevention
+- **SQL Injection**: 
+  - Parameterized queries with SeaORM
+  - Pattern detection and blocking
+  - Blocks: SQL keywords, UNION, SELECT, DROP, ALTER
+- **NoSQL Injection**:
+  - MongoDB operator filtering
+  - Blocks: $ne, $gt, $lt, $in, $nin, $where, $expr, etc.
+
+#### 4. XSS Protection
+- **HTML Sanitization**: Ammonia library removes malicious content
+- **Security Headers**: X-XSS-Protection, Content-Security-Policy
+- **Input Sanitization**: Automatic on all text inputs
+
+#### 5. Security Headers
+- **X-Content-Type-Options**: nosniff (prevents MIME sniffing)
+- **X-Frame-Options**: DENY (prevents clickjacking)
+- **X-XSS-Protection**: 1; mode=block (XSS protection)
+- **Content-Security-Policy**: Comprehensive CSP rules
+
+#### 6. Input Validation
+- **Email Validation**: RFC compliant email format checking
+- **String Constraints**: Length limits, character validation
+- **File Validation**: Type checking, size limits, security scanning
+- **Path Validation**: Prevents directory traversal attacks
 
 ## 🛠️ Advanced Usage
 
@@ -197,6 +281,27 @@ Untuk test photo upload:
 - Format harus JPEG/PNG/GIF
 - Gunakan form-data bukan raw JSON
 
+**5. 429 Too Many Requests**
+- Rate limit exceeded (60 requests/minute)
+- Wait for rate limit reset
+- Implement request throttling in client
+
+**6. 403 Forbidden (CSRF Protection)**
+- Missing Origin header in POST/PUT/DELETE requests
+- Add Origin header: `Origin: http://localhost:3000`
+- Ensure CORS configuration allows your domain
+
+**7. 400 Bad Request (Malicious Input)**
+- Input contains potentially malicious content
+- Check for SQL injection patterns in input
+- Avoid special characters in usernames/names
+- XSS content automatically sanitized
+
+**8. Security Headers Missing**
+- Check server configuration
+- Verify security middleware is enabled
+- All responses should include security headers
+
 ### Debug Tips
 - Check Console untuk log messages
 - Inspect Response untuk error details
@@ -232,6 +337,7 @@ Untuk test photo upload:
 
 ## 🎯 Best Practices
 
+### General Testing
 1. **Always Start with Health Check**: Verify server before testing
 2. **Use Automated Workflow**: Run complete workflow tests regularly
 3. **Check Security**: Validate authentication and authorization
@@ -239,6 +345,25 @@ Untuk test photo upload:
 5. **Photo Testing**: Test dengan file ukuran dan format berbeda
 6. **Error Testing**: Test invalid data dan edge cases
 7. **Token Management**: Monitor token expiry dan refresh
+
+### Security Testing
+1. **Rate Limiting**: Test with rapid successive requests
+2. **Origin Headers**: Always include Origin header for POST/PUT/DELETE
+3. **Malicious Input**: Test with SQL injection, XSS, and NoSQL injection payloads
+4. **Authentication**: Test both valid and invalid tokens
+5. **File Upload**: Test with various file types and sizes
+6. **Security Headers**: Verify all responses include security headers
+7. **CORS Testing**: Test cross-origin requests
+8. **Input Boundaries**: Test with maximum length inputs and edge cases
+
+### Production Deployment
+1. **Environment Variables**: Configure production CORS origins
+2. **Rate Limiting**: Adjust limits based on expected traffic
+3. **Monitoring**: Implement logging for security events
+4. **SSL/TLS**: Ensure HTTPS in production
+5. **Secrets Management**: Use proper secret management for JWT keys
+6. **Security Headers**: Verify all security headers in production
+7. **Regular Testing**: Run security tests regularly
 
 ## 🌐 Integration dengan Tools Lain
 

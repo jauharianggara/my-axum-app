@@ -1,10 +1,22 @@
-# Photo Upload API - Complete Testing Suite
+# Comprehensive API Testing Guide
 
-This comprehensive testing framework validates all aspects of the photo upload functionality for the Karyawan (Employee) API.
+This complete testing framework validates all aspects of the Karyawan (Employee) API including security, functionality, and performance.
 
 ## 🧪 Test Suite Overview
 
-### 1. Functional Testing (`comprehensive_photo_tests.py`)
+### 1. Security Testing (`security_tests.py`) 🛡️
+**Purpose**: Validates all security implementations
+- ✅ Rate limiting protection
+- ✅ CORS policy enforcement
+- ✅ SQL injection prevention
+- ✅ NoSQL injection prevention  
+- ✅ CSRF protection validation
+- ✅ XSS protection testing
+- ✅ Security headers verification
+- ✅ Input sanitization testing
+- ✅ Authentication bypass attempts
+
+### 2. Functional Testing (`comprehensive_photo_tests.py`) 📷
 **Purpose**: Validates core API functionality and business logic
 - ✅ Photo upload with karyawan creation
 - ✅ Standalone photo upload to existing karyawan
@@ -15,7 +27,17 @@ This comprehensive testing framework validates all aspects of the photo upload f
 - ✅ Error handling and edge cases
 - ✅ API response validation
 
-### 2. Performance Testing (`performance_photo_tests.py`)
+### 3. Authentication & Authorization Testing (`auth_tests.py`) 🔐
+**Purpose**: Validates authentication and authorization mechanisms
+- ✅ User registration with security validation
+- ✅ Login functionality
+- ✅ JWT token validation
+- ✅ Protected endpoint access
+- ✅ Role-based access control
+- ✅ Session management
+- ✅ Password security
+
+### 4. Performance Testing (`performance_photo_tests.py`) ⚡
 **Purpose**: Evaluates API performance under load
 - 🚀 Load testing (concurrent uploads)
 - ⚡ Stress testing (sustained load)
@@ -24,16 +46,7 @@ This comprehensive testing framework validates all aspects of the photo upload f
 - 🎯 Throughput measurement
 - 🧹 Automatic cleanup
 
-### 3. Security Testing (`security_photo_tests.py`)
-**Purpose**: Identifies security vulnerabilities
-- 🛡️ File type validation bypass attempts
-- 💉 SQL injection testing
-- 📁 Path traversal attack prevention
-- 🔒 Authentication/authorization checks
-- ⏰ Rate limiting verification
-- 🚨 Malicious file upload detection
-
-### 4. Master Test Runner (`test_runner.py`)
+### 5. Master Test Runner (`test_runner.py`) 🎯
 **Purpose**: Orchestrates all test suites
 - 🎯 Automated test execution
 - 🔍 Dependency checking
@@ -50,83 +63,161 @@ pip install requests pillow
 
 # Ensure Rust server is buildable
 cargo check
+
+# Ensure database is running
+docker-compose up -d
 ```
 
-### Run All Tests
+### Run All Tests (Recommended)
 ```bash
-# Run complete test suite (recommended)
-python test_runner.py
+# Run complete test suite with auto-server start
+python tests/master_test_runner.py --start-server
+
+# Run all tests (manual server start)
+cargo run &  # Start server in background
+python tests/master_test_runner.py
 
 # Run specific test suites
-python test_runner.py --suites functional security
+python tests/master_test_runner.py --suites security auth
 
-# Verbose output
-python test_runner.py --verbose
+# Verbose output for debugging
+python tests/master_test_runner.py --verbose
 
 # List available test suites
-python test_runner.py --list
+python tests/master_test_runner.py --list
 ```
 
 ### Run Individual Test Suites
 ```bash
-# Functional tests only
-python comprehensive_photo_tests.py
+# Security tests (RECOMMENDED FIRST)
+python tests/security_tests.py
 
-# Performance tests only
-python performance_photo_tests.py
+# Authentication tests
+python tests/auth_tests.py
 
-# Security tests only
-python security_photo_tests.py
+# Functional tests (photo uploads, etc.)
+python tests/comprehensive_photo_tests.py
+
+# Performance tests
+python tests/performance_photo_tests.py
+```
+
+### PowerShell Testing (Windows)
+```powershell
+# Quick security validation
+$response = Invoke-WebRequest -Uri "http://localhost:8080/health"
+$response.Headers  # Check security headers
+
+# Test CSRF protection
+Invoke-WebRequest -Uri "http://localhost:8080/api/auth/register" -Method POST -ContentType "application/json" -Body '{"username": "test"}'
+
+# Test with valid origin
+Invoke-WebRequest -Uri "http://localhost:8080/api/auth/register" -Method POST -ContentType "application/json" -Headers @{"Origin"="http://localhost:3000"} -Body '{"username": "validtest", "email": "test@test.com", "password": "TestPass123"}'
 ```
 
 ## 📋 Test Execution Matrix
 
-| Test Category | Tests | Duration | Automation Level |
-|---------------|-------|----------|------------------|
-| **Functional** | 20+ tests | 2-5 min | Fully Automated |
-| **Performance** | Load/Stress | 5-10 min | Fully Automated |
-| **Security** | 15+ tests | 3-7 min | Fully Automated |
-| **Interactive** | Manual testing | Variable | HTML Form |
+| Test Category | Tests | Duration | Automation Level | Priority |
+|---------------|-------|----------|------------------|----------|
+| **Security** | 25+ tests | 3-5 min | Fully Automated | 🔴 Critical |
+| **Authentication** | 15+ tests | 2-3 min | Fully Automated | 🟠 High |
+| **Functional** | 20+ tests | 2-5 min | Fully Automated | 🟡 Medium |
+| **Performance** | Load/Stress | 5-10 min | Fully Automated | 🟢 Low |
+| **Interactive** | Manual testing | Variable | HTML Form | 🔵 Optional |
+
+### Security Test Coverage
+- ✅ Rate limiting protection
+- ✅ CORS policy enforcement  
+- ✅ SQL injection prevention
+- ✅ NoSQL injection prevention
+- ✅ CSRF protection validation
+- ✅ XSS protection testing
+- ✅ Security headers verification
+- ✅ Input sanitization testing
+- ✅ Authentication bypass attempts
+
+### Authentication Test Coverage
+- ✅ User registration with validation
+- ✅ Login with username/email
+- ✅ JWT token validation
+- ✅ Protected endpoint access
+- ✅ Invalid credential handling
+- ✅ Session management
+- ✅ Authorization checks
 
 ## 🔧 Configuration
 
 ### Server Settings
 - **Base URL**: `http://localhost:8080`
-- **API Endpoint**: `/api/karyawans`
-- **Upload Endpoint**: `/api/karyawans/with-photo`
-- **Static Files**: `/uploads/`
+- **API Endpoints**: 
+  - Authentication: `/api/auth/register`, `/api/auth/login`
+  - Protected: `/api/karyawans`, `/api/kantors`, `/api/jabatans`
+  - User: `/api/user/profile`
+  - Static Files: `/uploads/`
 
-### Test Parameters
+### Security Test Parameters
 ```python
-# File size limits
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+# Security testing configuration
+CORS_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:5173']
+RATE_LIMIT_REQUESTS = 100  # per minute
+MAX_REQUEST_SIZE = 5 * 1024 * 1024  # 5MB
 
-# Supported formats
-SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp']
+# SQL/NoSQL injection patterns tested
+SQL_INJECTION_PATTERNS = [
+    "'; DROP TABLE users; --",
+    "' OR 1=1 --", 
+    "UNION SELECT password FROM users"
+]
 
-# Performance test settings
-LOAD_TEST_REQUESTS = 50
-STRESS_TEST_DURATION = 60  # seconds
-MAX_CONCURRENT_WORKERS = 20
+NOSQL_INJECTION_PATTERNS = [
+    "$where: function() { return true; }",
+    "{\"$gt\": \"\"}",
+    "this.password != null"
+]
+```
+
+### Authentication Test Parameters
+```python
+# Authentication testing configuration
+TEST_USER_PREFIX = "testuser_"
+TEST_EMAIL_DOMAIN = "@test.com"
+DEFAULT_PASSWORD = "SecurePass123"
+JWT_TOKEN_VALIDATION = True
 ```
 
 ## 📊 Understanding Test Results
 
 ### Success Indicators
 - ✅ **All tests pass**: API is production-ready
+- ✅ **Security tests pass**: No critical vulnerabilities detected
+- ✅ **Authentication tests pass**: User management works correctly
 - ✅ **Functional tests pass**: Core features work correctly
-- ✅ **Security tests pass**: No critical vulnerabilities
 - ✅ **Performance tests pass**: Handles expected load
+
+### Security Assessment Levels
+- 🟢 **EXCELLENT**: All security tests passed (0 failures)
+- 🟡 **GOOD**: Minor security issues detected (1-2 failures)  
+- 🟠 **WARNING**: Several security issues need attention (3-5 failures)
+- 🔴 **CRITICAL**: Major security vulnerabilities detected (6+ failures)
+
+### Authentication Assessment Levels
+- 🟢 **EXCELLENT**: All authentication tests passed
+- 🟡 **GOOD**: Minor authentication issues detected
+- 🟠 **WARNING**: Authentication issues need attention
+- 🔴 **CRITICAL**: Major authentication vulnerabilities detected
+
+### Critical Security Failures
+- ❌ **CSRF Protection Disabled**: Immediate security risk
+- ❌ **SQL Injection Possible**: Database compromise risk
+- ❌ **XSS Vulnerabilities**: Client-side attack risk
+- ❌ **Missing Security Headers**: Browser protection disabled
+- ❌ **Authentication Bypass**: Unauthorized access possible
 
 ### Warning Signs
 - ⚠️ **Partial failures**: Review specific issues
 - ⚠️ **Security warnings**: Address before production
 - ⚠️ **Performance issues**: May need optimization
-
-### Critical Issues
-- ❌ **Functional failures**: Core features broken
-- 🚨 **Security vulnerabilities**: Immediate attention required
-- 💥 **System errors**: Infrastructure problems
+- ⚠️ **Authentication edge cases**: Review security implications
 
 ## 🧹 Cleanup and Maintenance
 
@@ -212,23 +303,63 @@ python comprehensive_photo_tests.py
 - Caching: Implement image caching for frequently accessed photos
 - Load balancing: Multiple server instances for high traffic
 
-## 🔐 Security Checklist
+## 🔐 Security Testing Checklist
 
-### Implemented Protections
-- ✅ File type validation (MIME type + extension)
-- ✅ File size limits
-- ✅ Path traversal prevention
-- ✅ SQL injection protection (parameterized queries)
-- ✅ Unique file naming (UUID-based)
-- ✅ Safe file storage location
+### Pre-Production Security Validation
+Run this checklist before deploying to production:
 
-### Additional Recommendations
-- Implement authentication/authorization
-- Add rate limiting
-- Use HTTPS in production
-- Regular security audits
-- Input sanitization
-- File content scanning
+```bash
+# 1. Run comprehensive security tests
+python tests/security_tests.py
+
+# 2. Verify all security headers are present
+curl -I http://localhost:8080/health | grep -E "(X-|Content-Security|Referrer)"
+
+# 3. Test CSRF protection
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@test.com","password":"Test123"}'
+# Should return 403 Forbidden
+
+# 4. Test with valid origin
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://localhost:3000" \
+  -d '{"username":"validtest","email":"valid@test.com","password":"Test123"}'
+# Should return 200 OK
+
+# 5. Test SQL injection prevention
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://localhost:3000" \
+  -d '{"username":"admin'\'''; DROP TABLE users; --","email":"hack@test.com","password":"Test123"}'
+# Should return 400 Bad Request with security error
+
+# 6. Test authentication bypass
+curl http://localhost:8080/api/jabatans
+# Should return 401 Unauthorized
+
+# 7. Test with valid authentication
+# First login and get token, then:
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8080/api/jabatans
+# Should return 200 OK with data
+```
+
+### Security Headers Validation
+Expected headers on all responses:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- `Content-Security-Policy: default-src 'self'...`
+
+### CORS Validation
+- ✅ `localhost:3000` should be allowed
+- ✅ `localhost:5173` should be allowed  
+- ❌ `malicious-site.com` should be blocked
+- ✅ Credentials should be supported
+- ✅ Preflight requests should work
 
 ## 📝 Test Reports
 

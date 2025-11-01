@@ -1,4 +1,4 @@
-use axum::{Router, routing::get, middleware::from_fn_with_state};
+use axum::{Router, routing::get, middleware::from_fn_with_state, middleware::from_fn};
 use tokio::net::TcpListener;
 use std::env;
 use tower_http::cors::CorsLayer;
@@ -17,6 +17,38 @@ use database::establish_connection;
 use handlers::health::health_check;
 use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes, jabatan_routes};
 use middleware::auth::jwt_auth_layer;
+use middleware::security::{security_headers, csrf_protection};
+
+// Helper function to get CORS origins from environment variables
+fn get_cors_origins() -> Vec<HeaderValue> {
+    let cors_origins = env::var("CORS_ORIGINS")
+        .unwrap_or_else(|_| {
+            // Default values based on environment
+            if env::var("ENVIRONMENT").unwrap_or_default() == "production" {
+                "https://yourdomain.com,https://www.yourdomain.com".to_string()
+            } else {
+                "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000".to_string()
+            }
+        });
+
+    cors_origins
+        .split(',')
+        .filter_map(|origin| {
+            let trimmed = origin.trim();
+            if !trimmed.is_empty() {
+                match trimmed.parse::<HeaderValue>() {
+                    Ok(header_value) => Some(header_value),
+                    Err(e) => {
+                        eprintln!("⚠️ Invalid CORS origin '{}': {}", trimmed, e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 #[tokio::main]
 async fn main() {
@@ -59,15 +91,13 @@ async fn main() {
             "/api/jabatans", 
             jabatan_routes(db.clone())
         )
+        // Security middleware layers (applied in reverse order)
+        .layer(from_fn(security_headers))  // Security headers
+        .layer(from_fn(csrf_protection))   // CSRF protection
         // Add CORS layer to allow frontend requests
         .layer(
             CorsLayer::new()
-                // Allow requests from frontend development server
-                .allow_origin([
-                    "http://localhost:3000".parse::<HeaderValue>().unwrap(),
-                    "http://localhost:5173".parse::<HeaderValue>().unwrap(), // Vite default port
-                    "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
-                ])
+                .allow_origin(get_cors_origins())
                 .allow_methods([
                     Method::GET,
                     Method::POST,
@@ -79,6 +109,7 @@ async fn main() {
                     HeaderName::from_static("authorization"),
                     HeaderName::from_static("content-type"),
                     HeaderName::from_static("accept"),
+                    HeaderName::from_static("x-csrf-token"),  // Allow CSRF token header
                 ])
                 .allow_credentials(true)
         )

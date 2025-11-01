@@ -17,6 +17,7 @@ use crate::{
         },
     },
     services::auth::{JwtService, PasswordService},
+    validators::security::SecurityValidator,
 };
 
 pub async fn register(
@@ -44,9 +45,52 @@ pub async fn register(
         ));
     }
 
+    // Security validation
+    let sanitized_username = match SecurityValidator::validate_username(&request.username) {
+        Ok(username) => username,
+        Err(_) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse::error(
+                    "Security validation failed".to_string(),
+                    vec!["Username contains invalid characters or security threats".to_string()],
+                )),
+            ));
+        }
+    };
+
+    let sanitized_email = match SecurityValidator::validate_email(&request.email) {
+        Ok(email) => email,
+        Err(_) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse::error(
+                    "Security validation failed".to_string(),
+                    vec!["Email format is invalid or contains security threats".to_string()],
+                )),
+            ));
+        }
+    };
+
+    let sanitized_full_name = match &request.full_name {
+        Some(name) => match SecurityValidator::sanitize_string(name) {
+            Ok(sanitized) => Some(sanitized),
+            Err(_) => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse::error(
+                        "Security validation failed".to_string(),
+                        vec!["Full name contains security threats".to_string()],
+                    )),
+                ));
+            }
+        },
+        None => None,
+    };
+
     // Check if username already exists
     if let Ok(Some(_)) = UserEntity::find()
-        .filter(crate::models::user::Column::Username.eq(&request.username))
+        .filter(crate::models::user::Column::Username.eq(&sanitized_username))
         .one(&db)
         .await
     {
@@ -61,7 +105,7 @@ pub async fn register(
 
     // Check if email already exists
     if let Ok(Some(_)) = UserEntity::find()
-        .filter(crate::models::user::Column::Email.eq(&request.email))
+        .filter(crate::models::user::Column::Email.eq(&sanitized_email))
         .one(&db)
         .await
     {
@@ -90,10 +134,10 @@ pub async fn register(
 
     // Create new user
     let new_user = crate::models::user::ActiveModel {
-        username: Set(request.username),
-        email: Set(request.email),
+        username: Set(sanitized_username),
+        email: Set(sanitized_email),
         password_hash: Set(password_hash),
-        full_name: Set(request.full_name),
+        full_name: Set(sanitized_full_name),
         is_active: Set(true),
         ..Default::default()
     };

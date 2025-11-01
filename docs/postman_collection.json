@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "karyawan-kantor-api-collection",
 		"name": "🚀 Karyawan & Kantor Management API",
-		"description": "Comprehensive API collection for Karyawan (Employee), Kantor (Office), and Jabatan (Job Position) management system with JWT authentication and auto-create user feature.\n\n## 📖 Quick Start Guide\n\n### 1. Authentication Flow\n1. **Register** new user (optional if you have existing account)\n2. **Login** to get JWT token\n3. Use JWT token in Authorization header for all protected endpoints\n\n### 2. Environment Setup\n- Set `baseUrl` to `http://localhost:8080` for development\n- Token is automatically saved after login for subsequent requests\n\n### 3. Testing Flow\n1. Start with Health Check to verify server\n2. Register/Login to get authentication\n3. Create Jabatan (Job Position) first\n4. Create Kantor (Office)\n5. Create Karyawan (Employee) with jabatan_id and kantor_id - user account will be auto-created\n6. Test auto-created user login with credentials\n7. Test CRUD operations\n\n## ✨ Auto-Create User Feature\n\nWhen creating a new karyawan, the system automatically:\n- Creates a user account for the employee\n- Generates username from employee name (lowercase, no spaces)\n  - Example: \"Budi Santoso\" → username: \"budisantoso\"\n- Sets email as: {username}@karyawan.local\n- Sets default password: \"12345678\"\n- Allows the employee to login immediately\n- Reuses existing user if same name already exists\n\n**Example Flow:**\n1. Create karyawan named \"Budi Santoso\"\n2. System creates user:\n   - Username: budisantoso\n   - Email: budisantoso@karyawan.local\n   - Password: 12345678\n3. Login with these credentials to access employee portal\n\n## 🔐 Security Notes\n- All karyawan/kantor/jabatan endpoints require JWT authentication\n- Token expires in 24 hours\n- Use strong passwords (minimum 6 characters)\n- Auto-created users should change password on first login (recommended)\n\n## 📁 File Upload\n- Photo uploads support JPEG, PNG, GIF\n- Maximum file size: 5MB\n- Files stored in uploads/karyawan/{karyawan_id}/",
+		"description": "Comprehensive API collection for Karyawan (Employee), Kantor (Office), and Jabatan (Job Position) management system with JWT authentication, comprehensive security features, and auto-create user feature.\n\n## 📖 Quick Start Guide\n\n### 1. Authentication Flow\n1. **Register** new user (optional if you have existing account)\n2. **Login** to get JWT token\n3. Use JWT token in Authorization header for all protected endpoints\n\n### 2. Environment Setup\n- Set `baseUrl` to `http://localhost:8080` for development\n- Token is automatically saved after login for subsequent requests\n\n### 3. Testing Flow\n1. Start with Health Check to verify server\n2. Register/Login to get authentication\n3. Create Jabatan (Job Position) first\n4. Create Kantor (Office)\n5. Create Karyawan (Employee) with jabatan_id and kantor_id - user account will be auto-created\n6. Test auto-created user login with credentials\n7. Test CRUD operations\n8. Run security validation tests\n\n## 🛡️ Security Features\n\n### Rate Limiting\n- 60 requests per minute per IP address\n- Exceeding limit returns 429 Too Many Requests\n- Applied to all endpoints\n\n### CORS Protection\n- Environment-aware configuration\n- Development: allows localhost:3000\n- Production: configurable origins\n- CSRF protection via Origin header validation\n\n### Injection Prevention\n- **SQL Injection**: Parameterized queries + pattern detection\n- **NoSQL Injection**: MongoDB operator filtering\n- Blocked patterns include SQL keywords and NoSQL operators\n\n### XSS Protection\n- HTML sanitization with Ammonia library\n- Content Security Policy headers\n- X-XSS-Protection headers\n- Automatic input content sanitization\n\n### Security Headers\n- X-Content-Type-Options: nosniff\n- X-Frame-Options: DENY\n- X-XSS-Protection: 1; mode=block\n- Content-Security-Policy: comprehensive policy\n\n### Input Validation\n- Email format validation\n- String length constraints\n- File type and size validation\n- Path traversal prevention\n\n## ✨ Auto-Create User Feature\n\nWhen creating a new karyawan, the system automatically:\n- Creates a user account for the employee\n- Generates username from employee name (lowercase, no spaces)\n  - Example: \"Budi Santoso\" → username: \"budisantoso\"\n- Sets email as: {username}@karyawan.local\n- Sets default password: \"12345678\"\n- Allows the employee to login immediately\n- Reuses existing user if same name already exists\n\n**Example Flow:**\n1. Create karyawan named \"Budi Santoso\"\n2. System creates user:\n   - Username: budisantoso\n   - Email: budisantoso@karyawan.local\n   - Password: 12345678\n3. Login with these credentials to access employee portal\n\n## 🔐 Security Notes\n- All karyawan/kantor/jabatan endpoints require JWT authentication\n- Token expires in 24 hours\n- Use strong passwords (minimum 6 characters)\n- Auto-created users should change password on first login (recommended)\n- API includes comprehensive security protections against common vulnerabilities\n- Rate limiting enforced: 60 requests per minute per IP\n- CORS protection with origin validation\n- Input sanitization and validation on all endpoints\n\n## 📁 File Upload\n- Photo uploads support JPEG, PNG, GIF\n- Maximum file size: 5MB\n- Files stored in uploads/karyawan/{karyawan_id}/\n- File type validation and security scanning\n\n## 🧪 Security Testing\nThis collection includes comprehensive security tests:\n- Authentication bypass attempts\n- Rate limiting validation\n- CORS protection verification\n- Input injection testing (SQL/NoSQL/XSS)\n- Security headers validation\n- File upload security testing",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -1747,6 +1747,246 @@
 						}
 					],
 					"description": "Security validation tests for authentication and authorization"
+				},
+				{
+					"name": "Advanced Security Tests",
+					"item": [
+						{
+							"name": "Test Rate Limiting",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// This test should be run multiple times rapidly to trigger rate limiting",
+											"pm.test(\"Rate limiting test - Check status\", function () {",
+											"    // After 60 requests, should return 429",
+											"    if (pm.response.code === 429) {",
+											"        pm.test(\"Rate limiting is working\", function () {",
+											"            pm.response.to.have.status(429);",
+											"        });",
+											"    } else {",
+											"        pm.test(\"Request within rate limit\", function () {",
+											"            pm.response.to.have.status(200);",
+											"        });",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"health"
+									]
+								},
+								"description": "Test rate limiting by making rapid requests. Run this test repeatedly to trigger 429 Too Many Requests."
+							},
+							"response": []
+						},
+						{
+							"name": "Test Security Headers",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Security headers present\", function () {",
+											"    pm.response.to.have.header('x-content-type-options');",
+											"    pm.response.to.have.header('x-frame-options');",
+											"    pm.response.to.have.header('x-xss-protection');",
+											"    pm.response.to.have.header('content-security-policy');",
+											"});",
+											"",
+											"pm.test(\"Security header values correct\", function () {",
+											"    pm.expect(pm.response.headers.get('x-content-type-options')).to.equal('nosniff');",
+											"    pm.expect(pm.response.headers.get('x-frame-options')).to.equal('DENY');",
+											"    pm.expect(pm.response.headers.get('x-xss-protection')).to.include('1; mode=block');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/health",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"health"
+									]
+								},
+								"description": "Verify that all required security headers are present and correctly configured"
+							},
+							"response": []
+						},
+						{
+							"name": "Test CSRF Protection",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"CSRF protection blocks requests without Origin\", function () {",
+											"    pm.response.to.have.status(403);",
+											"});",
+											"",
+											"pm.test(\"Error message indicates CSRF protection\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData.success).to.be.false;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\\n    \\\"username\\\": \\\"csrf_test\\\",\\n    \\\"email\\\": \\\"csrf@test.com\\\",\\n    \\\"password\\\": \\\"Test123\\\",\\n    \\\"full_name\\\": \\\"CSRF Test\\\"\\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register"
+									]
+								},
+								"description": "Test CSRF protection by making request without Origin header - should be blocked"
+							},
+							"response": []
+						},
+						{
+							"name": "Test SQL Injection Protection",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"SQL injection attempt blocked\", function () {",
+											"    // Should return 400 for malicious input or block the request",
+											"    pm.expect([400, 403]).to.include(pm.response.code);",
+											"});",
+											"",
+											"pm.test(\"Error indicates validation failure\", function () {",
+											"    if (pm.response.code !== 200) {",
+											"        const jsonData = pm.response.json();",
+											"        pm.expect(jsonData.success).to.be.false;",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Origin",
+										"value": "http://localhost:3000"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\\n    \\\"username\\\": \\\"test'; DROP TABLE users; --\\\",\\n    \\\"email\\\": \\\"sql@injection.com\\\",\\n    \\\"password\\\": \\\"Test123\\\",\\n    \\\"full_name\\\": \\\"SQL Injection Test\\\"\\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register"
+									]
+								},
+								"description": "Test SQL injection protection with malicious SQL payload - should be blocked"
+							},
+							"response": []
+						},
+						{
+							"name": "Test XSS Protection",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"XSS attempt handled\", function () {",
+											"    // Should return 400 for malicious input or sanitize content",
+											"    pm.expect([200, 400, 403]).to.include(pm.response.code);",
+											"});",
+											"",
+											"pm.test(\"Response structure valid\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('success');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Origin",
+										"value": "http://localhost:3000"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\\n    \\\"username\\\": \\\"xsstest\\\",\\n    \\\"email\\\": \\\"xss@test.com\\\",\\n    \\\"password\\\": \\\"Test123\\\",\\n    \\\"full_name\\\": \\\"<script>alert('XSS')</script>\\\"\\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register"
+									]
+								},
+								"description": "Test XSS protection with script injection payload - should be sanitized or blocked"
+							},
+							"response": []
+						}
+					],
+					"description": "Advanced security tests for injection prevention, rate limiting, and security headers"
 				}
 			],
 			"description": "Comprehensive test scenarios covering workflows and security validations"

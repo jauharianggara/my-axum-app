@@ -14,6 +14,7 @@ mod m20251031_110440_remove_user_id_unique_constraint;
 mod m20251031_194811_create_jabatan_table;
 mod m20251031_194846_add_jabatan_id_to_karyawan;
 mod m20251101_000001_remove_posisi_from_karyawan;
+mod m20251101_100000_add_user_tracking_to_jabatan;
 
 pub struct Migrator;
 
@@ -35,6 +36,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20251031_194811_create_jabatan_table::Migration),
             Box::new(m20251031_194846_add_jabatan_id_to_karyawan::Migration),
             Box::new(m20251101_000001_remove_posisi_from_karyawan::Migration),
+            Box::new(m20251101_100000_add_user_tracking_to_jabatan::Migration),
         ]
     }
 }

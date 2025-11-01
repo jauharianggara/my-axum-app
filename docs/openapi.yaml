@@ -2,9 +2,9 @@ openapi: 3.0.3
 info:
   title: Karyawan & Kantor Management API
   description: |
-    REST API untuk manajemen data karyawan dan kantor dengan JWT authentication.
+    Secure REST API untuk manajemen data karyawan dan kantor dengan comprehensive security features.
     
-    ## Features
+    ## Core Features
     - ✅ JWT Authentication (Register, Login, Protected Endpoints)
     - ✅ CRUD Operations untuk Karyawan, Kantor, dan Jabatan
     - ✅ **Auto-Create User Account** - Otomatis membuat user saat create karyawan
@@ -13,6 +13,16 @@ info:
     - ✅ **Jabatan (Job Position) Management** - Mandatory field untuk karyawan
     - ✅ Database Integration dengan MySQL
     - ✅ Comprehensive Validation dan Error Handling
+    
+    ## 🛡️ Security Features
+    - ✅ **Rate Limiting** - 60 requests per minute per IP
+    - ✅ **CORS Protection** - Environment-aware CORS configuration
+    - ✅ **SQL Injection Prevention** - Parameterized queries + pattern detection
+    - ✅ **NoSQL Injection Prevention** - MongoDB operator filtering
+    - ✅ **CSRF Protection** - Origin header validation
+    - ✅ **XSS Protection** - HTML sanitization + CSP headers
+    - ✅ **Security Headers** - Comprehensive security headers
+    - ✅ **Input Validation** - Strict input sanitization and validation
     
     ## Auto-Create User Feature
     Ketika membuat karyawan baru, sistem otomatis:
@@ -28,12 +38,33 @@ info:
     2. Login untuk mendapatkan JWT token
     3. Gunakan token di header `Authorization: Bearer <token>`
     
-    ## Quick Start
-    1. **Register**: `POST /api/auth/register`
-    2. **Login**: `POST /api/auth/login` 
-    3. **Access Protected Endpoints**: Include `Authorization: Bearer <token>` header
+    ## Security Headers
+    All responses include comprehensive security headers:
+    - `X-Content-Type-Options: nosniff`
+    - `X-Frame-Options: DENY`
+    - `X-XSS-Protection: 1; mode=block`
+    - `Content-Security-Policy: default-src 'self'`
     
-  version: 5.0.0
+    ## Rate Limiting
+    API implements rate limiting:
+    - 60 requests per minute per IP address
+    - Exceeding limit returns 429 Too Many Requests
+    
+    ## Input Validation
+    All inputs are validated and sanitized:
+    - SQL injection pattern detection and blocking
+    - NoSQL injection operator filtering
+    - XSS content sanitization
+    - Email and string format validation
+    
+    ## CORS Protection
+    CORS is configured securely via environment variables:
+    - **Development**: allows localhost:3000, localhost:5173, 127.0.0.1:3000
+    - **Production**: configurable allowed origins via CORS_ORIGINS environment variable
+    - **Configuration**: Set via CORS_ORIGINS=origin1,origin2,origin3 in .env file
+    - Validates Origin header for state-changing requests
+    
+  version: 6.0.0
   contact:
     name: API Support
     email: support@example.com
@@ -49,17 +80,19 @@ servers:
 
 tags:
   - name: Authentication
-    description: User authentication dan JWT management
+    description: User authentication dan JWT management (Rate limited)
   - name: Health
-    description: Health check endpoints
+    description: Health check endpoints (Public access)
   - name: Karyawan
-    description: Karyawan management operations (Protected)
+    description: Karyawan management operations (Protected, Rate limited)
   - name: Kantor
-    description: Kantor management operations (Protected)
+    description: Kantor management operations (Protected, Rate limited)
   - name: Jabatan
-    description: Jabatan (Job Position) management operations (Protected)
+    description: Jabatan (Job Position) management operations (Protected, Rate limited)
   - name: Files
-    description: Static file serving
+    description: Static file serving (Public access)
+  - name: Security
+    description: Security-related endpoints and information
 
 paths:
   # Health & Root Endpoints
@@ -83,10 +116,31 @@ paths:
       tags:
         - Health
       summary: Health check
-      description: Check if the API server is running
+      description: Check if the API server is running. Returns security headers.
       responses:
         '200':
           description: Server is healthy
+          headers:
+            X-Content-Type-Options:
+              description: Security header to prevent MIME type sniffing
+              schema:
+                type: string
+                example: nosniff
+            X-Frame-Options:
+              description: Security header to prevent clickjacking
+              schema:
+                type: string
+                example: DENY
+            X-XSS-Protection:
+              description: Security header for XSS protection
+              schema:
+                type: string
+                example: "1; mode=block"
+            Content-Security-Policy:
+              description: Content Security Policy header
+              schema:
+                type: string
+                example: "default-src 'self'"
           content:
             application/json:
               schema:
@@ -99,7 +153,15 @@ paths:
       tags:
         - Authentication
       summary: Register new user
-      description: Create a new user account
+      description: |
+        Create a new user account with comprehensive security validation.
+        
+        **Security Features:**
+        - Rate limited (60 requests/minute/IP)
+        - Input validation and sanitization
+        - XSS protection
+        - SQL injection prevention
+        - CSRF protection via Origin header validation
       requestBody:
         required: true
         content:
@@ -109,6 +171,12 @@ paths:
       responses:
         '201':
           description: User registered successfully
+          headers:
+            X-Content-Type-Options:
+              description: Security header
+              schema:
+                type: string
+                example: nosniff
           content:
             application/json:
               schema:
@@ -119,7 +187,13 @@ paths:
                       data:
                         $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Validation error
+          description: Validation error or malicious input detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF protection - Invalid or missing Origin header
           content:
             application/json:
               schema:
@@ -130,13 +204,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/auth/login:
     post:
       tags:
         - Authentication
       summary: User login
-      description: Authenticate user and get JWT token
+      description: |
+        Authenticate user and get JWT token with security protections.
+        
+        **Security Features:**
+        - Rate limited (60 requests/minute/IP)
+        - Input validation and sanitization
+        - CSRF protection via Origin header validation
+        - Secure JWT token generation
       requestBody:
         required: true
         content:
@@ -156,13 +243,25 @@ paths:
                       data:
                         $ref: '#/components/schemas/LoginResponse'
         '400':
-          description: Validation error
+          description: Validation error or malicious input detected
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF protection - Invalid or missing Origin header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
           content:
             application/json:
               schema:
@@ -195,13 +294,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Security Information Endpoints
+  /.well-known/security.txt:
+    get:
+      tags:
+        - Security
+      summary: Security policy information
+      description: Returns security policy and contact information (if implemented)
+      responses:
+        '200':
+          description: Security policy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  Contact: security@example.com
+                  Expires: 2024-12-31T23:59:59.000Z
+                  Encryption: https://example.com/pgp-key.txt
+                  Policy: https://example.com/security-policy
+        '404':
+          description: Security policy not configured
+
   # Karyawan Endpoints
   /api/karyawans:
     get:
       tags:
         - Karyawan
       summary: Get all karyawan
-      description: Retrieve list of all karyawan
+      description: |
+        Retrieve list of all karyawan with comprehensive security protections.
+        
+        **Security Features:**
+        - JWT authentication required
+        - Rate limited (60 requests/minute/IP)
+        - Security headers applied
+        - Input validation on query parameters
       security:
         - BearerAuth: []
       responses:
@@ -1121,7 +1249,27 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token obtained from login endpoint
+      description: |
+        JWT token obtained from login endpoint.
+        
+        **Security Features:**
+        - Token expires in 24 hours
+        - Secure token generation with strong secret
+        - Token validation on every protected request
+        - Rate limiting applied to authenticated requests
+
+  parameters:
+    SecurityHeaders:
+      name: Security-Headers
+      in: header
+      description: |
+        All responses include comprehensive security headers:
+        - X-Content-Type-Options: nosniff
+        - X-Frame-Options: DENY
+        - X-XSS-Protection: 1; mode=block
+        - Content-Security-Policy: default-src 'self'
+      schema:
+        type: string
 
   schemas:
     # Common Schemas
@@ -1616,3 +1764,70 @@ components:
 
 security:
   - BearerAuth: []
+
+# Security Information
+x-security-features:
+  rate-limiting:
+    enabled: true
+    rate: "60 requests per minute per IP"
+    enforcement: "429 Too Many Requests on exceed"
+  
+  cors-protection:
+    enabled: true
+    configuration: "Environment variable based (CORS_ORIGINS)"
+    development-origins: 
+      - "http://localhost:3000"
+      - "http://localhost:5173" 
+      - "http://127.0.0.1:3000"
+    production-origins: "configurable via CORS_ORIGINS environment variable"
+    csrf-protection: "Origin header validation"
+  
+  injection-prevention:
+    sql-injection:
+      enabled: true
+      methods: 
+        - "Parameterized queries (SeaORM)"
+        - "Pattern detection and blocking"
+      patterns-blocked:
+        - "SQL keywords and operators"
+        - "Union, select, drop, alter statements"
+    
+    nosql-injection:
+      enabled: true
+      operators-blocked:
+        - "$ne, $gt, $lt, $gte, $lte"
+        - "$in, $nin, $exists, $regex"
+        - "$where, $expr, $jsonSchema"
+  
+  xss-protection:
+    enabled: true
+    methods:
+      - "HTML sanitization with Ammonia library"
+      - "Content Security Policy headers"
+      - "X-XSS-Protection headers"
+    content-sanitization: "Automatic on all text inputs"
+  
+  security-headers:
+    enabled: true
+    headers:
+      - "X-Content-Type-Options: nosniff"
+      - "X-Frame-Options: DENY"
+      - "X-XSS-Protection: 1; mode=block"
+      - "Content-Security-Policy: comprehensive policy"
+  
+  input-validation:
+    enabled: true
+    features:
+      - "Email format validation"
+      - "String length constraints"
+      - "Numeric range validation"
+      - "File type and size validation"
+      - "Path traversal prevention"
+  
+  authentication:
+    jwt-security:
+      algorithm: "HMAC SHA256"
+      expiry: "24 hours"
+      secure-secret: "Environment variable based"
+    protected-endpoints: "All /api/* except /api/auth/*"
+    authorization-header: "Bearer token required"
