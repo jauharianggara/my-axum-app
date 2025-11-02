@@ -122,9 +122,7 @@ async fn main() {
         // Security middleware layers (applied in reverse order)
         .layer(from_fn(security_headers))  // Security headers
         .layer(from_fn(csrf_protection))   // CSRF protection
-        .with_state(db);
         // Add CORS layer to allow frontend requests
-        /**
         .layer({
             let (cors_origins, is_wildcard) = get_cors_origins();
             
@@ -166,8 +164,7 @@ async fn main() {
                     .allow_credentials(true)
             }
         })
-         */
-        
+        .with_state(db);
 
     // Get host and port from environment or use defaults
     let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
