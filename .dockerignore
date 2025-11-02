@@ -1,42 +1,58 @@
-# Rust
-target/
-# Don't ignore Cargo.lock - needed for reproducible builds
-
 # Git
-.git/
+.git
 .gitignore
+.gitattributes
 
-# Docker
-Dockerfile
-.dockerignore
-
-# Environment
+# Environment files (keep .env.example for reference)
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+!.env.example
+
+# Build artifacts
+target/
+# Note: Cargo.lock is kept for reproducible builds
 
 # Documentation
+*.md
+docs/
 README.md
-README_NEW.md
-DATABASE_SETUP.md
 
-# Test files
-test_*.ps1
+# Tests
+tests/
+test-results/
+
+# Scripts
+scripts/
 *.ps1
+*.sh
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Uploads (keep structure, not files)
+uploads/**
+!uploads/karyawan/.gitkeep
 
 # Logs
 *.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Deployment files
+apache-vhost.conf
+axum-api.service
+deploy.sh
+nginx.conf
+
+# Docker files (except main Dockerfile)
+docker-compose*.yml
+!docker-compose.yml
 
 # Node modules (if any)
 node_modules/

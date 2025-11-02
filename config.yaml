@@ -1,0 +1,170 @@
+# Axum API Configuration
+# This file contains the complete configuration for the Axum API server
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  environment: "production"  # Options: development, staging, production
+  
+database:
+  host: "localhost"
+  port: 3306
+  name: "my_axum_db"
+  username: "axum"
+  password: "${DATABASE_PASSWORD}"  # Set via environment variable
+  pool:
+    max_connections: 10
+    min_connections: 2
+    connection_timeout: 30  # seconds
+    idle_timeout: 600  # seconds
+
+security:
+  jwt:
+    secret: "${JWT_SECRET}"  # Set via environment variable (min 32 characters)
+    expiration: 3600  # seconds (1 hour)
+    algorithm: "HS256"
+  
+  password:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    bcrypt_cost: 12
+  
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+  
+  input_validation:
+    max_input_length: 10000
+    sanitize_html: true
+    block_sql_injection: true
+
+cors:
+  # Option 1: Specific origins (RECOMMENDED for production)
+  enabled: true
+  origins:
+    - "http://nextjs.synergyinfinity.id"
+    - "https://nextjs.synergyinfinity.id"
+    - "http://axum.synergyinfinity.id"
+    - "https://axum.synergyinfinity.id"
+  
+  # Option 2: Development origins
+  dev_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:5173"
+  
+  # Option 3: Wildcard (⚠️ NOT RECOMMENDED for production)
+  # wildcard: "*"
+  
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Requested-With"
+    - "Accept"
+  
+  exposed_headers:
+    - "Content-Length"
+    - "Content-Type"
+  
+  allow_credentials: true
+  max_age: 3600  # seconds
+
+upload:
+  base_path: "./uploads"
+  karyawan_photos:
+    path: "./uploads/karyawan"
+    max_size: 5242880  # 5MB in bytes
+    allowed_extensions:
+      - "jpg"
+      - "jpeg"
+      - "png"
+      - "gif"
+    allowed_mime_types:
+      - "image/jpeg"
+      - "image/png"
+      - "image/gif"
+
+logging:
+  level: "info"  # Options: trace, debug, info, warn, error
+  format: "json"  # Options: json, pretty
+  output: "stdout"  # Options: stdout, file
+  file_path: "/var/log/axum-api/app.log"
+  rotate:
+    enabled: true
+    max_size: "100MB"
+    max_age: 30  # days
+    max_backups: 10
+
+features:
+  auto_create_user:
+    enabled: true
+    default_username: "admin"
+    default_password: "Admin@123"
+  
+  user_tracking:
+    enabled: true
+    track_created_by: true
+    track_updated_by: true
+  
+  kantor_validation:
+    required: true
+    auto_assign: false
+
+api:
+  version: "v1"
+  base_path: "/api/v1"
+  documentation:
+    enabled: true
+    swagger_ui: "/docs"
+    openapi_spec: "/api-docs/openapi.yaml"
+
+deployment:
+  apache:
+    enabled: true
+    server_name: "axum.synergyinfinity.id"
+    proxy_port: 80
+    ssl_enabled: true
+    ssl_cert: "/etc/letsencrypt/live/axum.synergyinfinity.id/fullchain.pem"
+    ssl_key: "/etc/letsencrypt/live/axum.synergyinfinity.id/privkey.pem"
+  
+  systemd:
+    enabled: true
+    service_name: "axum-api"
+    user: "www-data"
+    group: "www-data"
+    working_directory: "/www/wwwroot/axum-backend"
+    restart_policy: "always"
+
+docker:
+  enabled: false
+  image: "axum-api"
+  tag: "latest"
+  ports:
+    - "8080:8080"
+  volumes:
+    - "./uploads:/app/uploads"
+  networks:
+    - "axum-network"
+
+monitoring:
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    interval: 30  # seconds
+  
+  metrics:
+    enabled: false
+    endpoint: "/metrics"
+    prometheus: false

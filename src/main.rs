@@ -67,9 +67,9 @@ fn get_cors_origins() -> (Vec<HeaderValue>, bool) {
     
     // Default development origins
     let defaults = vec![
-        "http://localhost:3000".parse().unwrap(),
+        "https://nextjs.synergyinfinity.id/".parse().unwrap(),
         "http://localhost:5173".parse().unwrap(),
-        "http://127.0.0.1:3000".parse().unwrap(),
+        "http://nextjs.synergyinfinity.id/".parse().unwrap(),
     ];
     
     (defaults, false)
@@ -119,7 +119,9 @@ async fn main() {
         // Security middleware layers (applied in reverse order)
         .layer(from_fn(security_headers))  // Security headers
         .layer(from_fn(csrf_protection))   // CSRF protection
+        .with_state(db);
         // Add CORS layer to allow frontend requests
+        /**
         .layer({
             let (cors_origins, is_wildcard) = get_cors_origins();
             
@@ -161,7 +163,8 @@ async fn main() {
                     .allow_credentials(true)
             }
         })
-        .with_state(db);
+         */
+        
 
     // Get host and port from environment or use defaults
     let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
