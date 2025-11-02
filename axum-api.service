@@ -1,0 +1,24 @@
+[Unit]
+Description=Axum API Service - Karyawan & Kantor Management
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/www/wwwroot/axum-backend
+Environment="RUST_LOG=info"
+Environment="ENVIRONMENT=production"
+ExecStart=/www/wwwroot/axum-backend/target/release/my-axum-app
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
