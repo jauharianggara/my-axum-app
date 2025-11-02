@@ -1,6 +1,6 @@
 use axum::{Router, routing::get, middleware::from_fn_with_state, middleware::from_fn};
 use tokio::net::TcpListener;
-use std::env;
+use std::{env, net::SocketAddr};
 use tower_http::cors::{CorsLayer, Any};
 use axum::http::{Method, HeaderValue, HeaderName};
 
@@ -18,6 +18,7 @@ use handlers::health::health_check;
 use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, auth_routes, jabatan_routes};
 use middleware::auth::jwt_auth_layer;
 use middleware::security::{security_headers, csrf_protection};
+use middleware::logger::request_logger;  // Import logger middleware
 
 // Helper function to get CORS origins from environment variables
 // Returns (origins, is_wildcard)
@@ -116,6 +117,8 @@ async fn main() {
             "/api/jabatans", 
             jabatan_routes(db.clone())
         )
+        // Logging middleware (logs all requests)
+        .layer(from_fn(request_logger))
         // Security middleware layers (applied in reverse order)
         .layer(from_fn(security_headers))  // Security headers
         .layer(from_fn(csrf_protection))   // CSRF protection
@@ -174,5 +177,12 @@ async fn main() {
     // Run it with hyper
     let listener = TcpListener::bind(&bind_addr).await.unwrap();
     println!("🚀 Server running on http://{}", bind_addr);
-    axum::serve(listener, app).await.unwrap();
+    
+    // Enable ConnectInfo for IP address logging
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>()
+    )
+    .await
+    .unwrap();
 }
