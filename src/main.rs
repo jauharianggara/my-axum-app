@@ -1,7 +1,7 @@
 use axum::{Router, routing::get, middleware::from_fn_with_state, middleware::from_fn};
 use tokio::net::TcpListener;
 use std::env;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{CorsLayer, Any};
 use axum::http::{Method, HeaderValue, HeaderName};
 
 // Import modules
@@ -20,34 +20,59 @@ use middleware::auth::jwt_auth_layer;
 use middleware::security::{security_headers, csrf_protection};
 
 // Helper function to get CORS origins from environment variables
-fn get_cors_origins() -> Vec<HeaderValue> {
-    let cors_origins = env::var("CORS_ORIGINS")
-        .unwrap_or_else(|_| {
-            // Default values based on environment
-            if env::var("ENVIRONMENT").unwrap_or_default() == "production" {
-                "https://yourdomain.com,https://www.yourdomain.com".to_string()
-            } else {
-                "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000".to_string()
-            }
-        });
-
-    cors_origins
-        .split(',')
-        .filter_map(|origin| {
-            let trimmed = origin.trim();
-            if !trimmed.is_empty() {
-                match trimmed.parse::<HeaderValue>() {
-                    Ok(header_value) => Some(header_value),
+// Returns (origins, is_wildcard)
+fn get_cors_origins() -> (Vec<HeaderValue>, bool) {
+    if let Ok(origins_str) = env::var("CORS_ORIGINS") {
+        let trimmed = origins_str.trim();
+        
+        // Check if wildcard
+        if trimmed == "*" {
+            println!("⚠️  WARNING: CORS set to allow ALL origins (*)");
+            println!("⚠️  This is NOT secure for production!");
+            println!("⚠️  Credentials will be DISABLED for security");
+            return (vec![HeaderValue::from_static("*")], true);
+        }
+        
+        // Parse comma-separated origins
+        let mut valid_origins = Vec::new();
+        for origin in trimmed.split(',') {
+            let origin = origin.trim();
+            if !origin.is_empty() {
+                match origin.parse::<HeaderValue>() {
+                    Ok(header_value) => {
+                        valid_origins.push(header_value);
+                        println!("✅ CORS origin added: {}", origin);
+                    }
                     Err(e) => {
-                        eprintln!("⚠️ Invalid CORS origin '{}': {}", trimmed, e);
-                        None
+                        eprintln!("⚠️  Invalid CORS origin '{}': {}", origin, e);
                     }
                 }
-            } else {
-                None
             }
-        })
-        .collect()
+        }
+        
+        if !valid_origins.is_empty() {
+            return (valid_origins, false);
+        }
+    }
+
+    // Fallback based on environment
+    let environment = env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
+    
+    if environment == "production" {
+        println!("⚠️  Production mode: Using restricted CORS (localhost only)");
+        println!("⚠️  Please set CORS_ORIGINS in .env for production!");
+    } else {
+        println!("ℹ️  Development mode: Using default CORS origins");
+    }
+    
+    // Default development origins
+    let defaults = vec![
+        "http://localhost:3000".parse().unwrap(),
+        "http://localhost:5173".parse().unwrap(),
+        "http://127.0.0.1:3000".parse().unwrap(),
+    ];
+    
+    (defaults, false)
 }
 
 #[tokio::main]
@@ -95,24 +120,47 @@ async fn main() {
         .layer(from_fn(security_headers))  // Security headers
         .layer(from_fn(csrf_protection))   // CSRF protection
         // Add CORS layer to allow frontend requests
-        .layer(
-            CorsLayer::new()
-                .allow_origin(get_cors_origins())
-                .allow_methods([
-                    Method::GET,
-                    Method::POST,
-                    Method::PUT,
-                    Method::DELETE,
-                    Method::OPTIONS,
-                ])
-                .allow_headers([
-                    HeaderName::from_static("authorization"),
-                    HeaderName::from_static("content-type"),
-                    HeaderName::from_static("accept"),
-                    HeaderName::from_static("x-csrf-token"),  // Allow CSRF token header
-                ])
-                .allow_credentials(true)
-        )
+        .layer({
+            let (cors_origins, is_wildcard) = get_cors_origins();
+            
+            if is_wildcard {
+                // Wildcard mode - allow any origin (NOT for production!)
+                CorsLayer::new()
+                    .allow_origin(Any)
+                    .allow_methods([
+                        Method::GET,
+                        Method::POST,
+                        Method::PUT,
+                        Method::DELETE,
+                        Method::OPTIONS,
+                    ])
+                    .allow_headers([
+                        HeaderName::from_static("authorization"),
+                        HeaderName::from_static("content-type"),
+                        HeaderName::from_static("accept"),
+                        HeaderName::from_static("x-csrf-token"),
+                    ])
+                    .allow_credentials(false)  // MUST be false with Any origin
+            } else {
+                // Specific origins mode (recommended)
+                CorsLayer::new()
+                    .allow_origin(cors_origins)
+                    .allow_methods([
+                        Method::GET,
+                        Method::POST,
+                        Method::PUT,
+                        Method::DELETE,
+                        Method::OPTIONS,
+                    ])
+                    .allow_headers([
+                        HeaderName::from_static("authorization"),
+                        HeaderName::from_static("content-type"),
+                        HeaderName::from_static("accept"),
+                        HeaderName::from_static("x-csrf-token"),
+                    ])
+                    .allow_credentials(true)
+            }
+        })
         .with_state(db);
 
     // Get host and port from environment or use defaults

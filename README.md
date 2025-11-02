@@ -971,6 +971,40 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000
 ENVIRONMENT=development
 ```
 
+**CORS Options:**
+
+1. **Wildcard (Testing Only - ⚠️ NOT SECURE!):**
+   ```env
+   CORS_ORIGINS=*
+   ```
+   - Allows ALL origins
+   - Disables credentials (JWT won't work properly)
+   - Use only for quick testing
+
+2. **Specific Origins (Recommended):**
+   ```env
+   # Development
+   CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+   
+   # Production with IP
+   CORS_ORIGINS=http://103.167.113.116:3000,http://103.167.113.116:5173
+   
+   # Production with Domain
+   CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+   ```
+
+**Quick Test CORS:**
+```powershell
+# Check configuration
+.\scripts\check_env.ps1
+
+# Test CORS
+.\scripts\test_cors_config.ps1
+
+# Test production server
+.\scripts\test_production_cors.ps1
+```
+
 ### Example Configurations
 
 #### Development (.env)
@@ -989,7 +1023,10 @@ DATABASE_URL=mysql://prod_user:secure_password@prod_server:3306/prod_database
 JWT_SECRET=your-super-secure-production-secret-key-at-least-256-bits
 ```
 
-**📖 Detailed CORS Configuration Guide**: See `docs/CORS_CONFIGURATION_GUIDE.md` for comprehensive CORS setup instructions.
+**📖 Detailed CORS Configuration Guide**: 
+- **Quick Start**: See `QUICK_START_CORS.md` for 3-step setup
+- **Full Guide**: `docs/CORS_CONFIGURATION_GUIDE.md` for comprehensive CORS setup
+- **Quick Reference**: `docs/CORS_QUICK_REFERENCE.md` for command reference
 
 ## 🔧 Development
 
