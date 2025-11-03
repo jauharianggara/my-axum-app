@@ -19,6 +19,7 @@ use routes::{create_kantor_routes, create_karyawan_routes, public_auth_routes, a
 use middleware::auth::jwt_auth_layer;
 use middleware::security::{security_headers, csrf_protection};
 use middleware::logger::request_logger;  // Import logger middleware
+use services::file_upload::FileUploadService;  // Import file upload service
 
 // Helper function to get CORS origins from environment variables
 // Returns (origins, is_wildcard)
@@ -92,6 +93,11 @@ async fn main() {
             std::process::exit(1);
         }
     };
+
+    // Initialize upload directories
+    if let Err(err) = FileUploadService::init_directories().await {
+        eprintln!("⚠️  Warning: Failed to initialize upload directories: {}", err);
+    }
 
     // Build our application with routes
     let app = Router::new()

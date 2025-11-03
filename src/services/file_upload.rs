@@ -16,6 +16,27 @@ pub struct UploadedFile {
 }
 
 impl FileUploadService {
+    /// Initialize upload directories
+    /// Should be called at application startup
+    pub async fn init_directories() -> Result<()> {
+        let directories = vec![
+            "uploads",
+            "uploads/karyawan",
+            "uploads/karyawan/photos",
+        ];
+
+        for dir in directories {
+            if let Err(e) = fs::create_dir_all(dir).await {
+                eprintln!("⚠️  Warning: Failed to create directory '{}': {}", dir, e);
+                // Try to continue anyway
+            } else {
+                println!("✅ Upload directory ready: {}", dir);
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn save_karyawan_photo(
         field: Field<'_>,
         karyawan_id: Option<i32>,
@@ -28,8 +49,21 @@ impl FileUploadService {
 
         // Create uploads directory if it doesn't exist
         let upload_dir = "uploads/karyawan/photos";
-        fs::create_dir_all(upload_dir).await
-            .context("Failed to create upload directory")?;
+        
+        // Try to create directory with better error handling
+        match fs::create_dir_all(upload_dir).await {
+            Ok(_) => {},
+            Err(e) => {
+                // Check if directory already exists
+                if !Path::new(upload_dir).exists() {
+                    return Err(anyhow::anyhow!(
+                        "Failed to create upload directory '{}': {}. Please check permissions.",
+                        upload_dir, e
+                    ));
+                }
+                // Directory exists, continue
+            }
+        }
 
         // Generate unique filename
         let file_extension = Self::get_file_extension(&original_name);
